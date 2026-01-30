@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pixel Pier: Sunset Catch Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: #2d1301; color: #fff;
+            font-family: 'Press Start 2P', cursive; overflow: hidden;
+            touch-action: none; display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+
+        #game-container {
+            position: relative; 
+            width: 100vw; height: 100vh;
+            max-width: 56.25vh; max-height: 177.78vw;
+            background: #000; overflow: hidden; 
+        }
+
+        canvas { image-rendering: pixelated; width: 100%; height: 100%; display: block; }
+
+        .top-ui {
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            z-index: 50; display: flex; flex-direction: column; gap: 8px;
+        }
+
+        .header-row { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; }
+
+        .combined-stat-box {
+            background: #2d1301; padding: 5px 8px; border: 3px solid #000;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: inset -3px -3px 0 #1a0a00, inset 3px 3px 0 #4d260b, 4px 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .xp-container {
+            width: 100%; height: 5px; background: #1a0a00; border: 2px solid #000; margin-top: 3px;
+        }
+        #xp-fill { width: 0%; height: 100%; background: #a855f7; }
+
+        .status-meta-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .active-potion-box {
+            background: #2d1301; padding: 4px 8px; border: 4px solid #000;
+            display: none; align-items: center; gap: 8px; align-self: flex-start;
+            box-shadow: inset -4px -4px 0 #1a0a00, inset 4px 4px 0 #4d260b, 6px 6px 0 rgba(0,0,0,0.4);
+        }
+
+        #event-alert {
+            display: none; background: #ef4444; color: #fff; padding: 2px 4px; border: 1px solid #000;
+            font-size: 4px; text-align: right; animation: pulse 0.5s infinite;
+            margin-top: 2px; text-transform: uppercase;
+        }
+
+        .stat-text { font-size: 5.5px; line-height: 1.4; }
+        .nav-icons { display: flex; gap: 6px; border-left: 3px solid #000; padding-left: 8px; }
+
+        .icon-btn {
+            width: 32px; height: 32px; background: #3d1c02; border: 2px solid #000;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; padding: 0;
+            box-shadow: inset -2px -2px 0 #1a0a00, 2px 2px 0 rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        .icon-btn:active { transform: scale(0.9) translateY(2px); }
+
+        .bottom-ui {
+            position: absolute; bottom: 4vh; left: 0; right: 0;
+            display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 60;
+        }
+
+        .action-main-btn {
+            background: #fbbf24; color: #000; font-family: 'Press Start 2P', cursive;
+            font-size: 10px; padding: 18px 45px;
+            border: 4px solid #000; cursor: pointer; pointer-events: auto;
+            box-shadow: inset -4px -4px 0 #b45309, inset 4px 4px 0 #fde68a, 6px 6px 0 rgba(0,0,0,0.4); 
+            border-radius: 0; transition: transform 0.05s;
+        }
+        .action-main-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,0.4); }
+
+        .auto-btn {
+            background: #444; color: #fff; font-family: 'Press Start 2P', cursive;
+            font-size: 8px; padding: 6px 15px;
+            border: 3px solid #000; cursor: pointer; pointer-events: auto;
+            box-shadow: inset -2px -2px 0 #222, 4px 4px 0 rgba(0,0,0,0.4);
+        }
+        .auto-btn.active { background: #10b981; color: #fff; box-shadow: inset -2px -2px 0 #064e3b; animation: pulse 1s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        #tension-bar-container {
+            width: 140px; height: 16px; background: #000; border: 4px solid #000;
+            display: none; overflow: hidden; box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+        }
+        #tension-fill { height: 100%; width: 0%; background: #4ade80; box-shadow: inset -4px 0 0 rgba(0,0,0,0.2); }
+
+        .modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; max-height: 55vh; background: #0c0c1e; border: 3px solid #fff; padding: 8px; z-index: 1000; display: none;
+            box-shadow: 0 0 0 3px #000, 6px 6px 0 rgba(0,0,0,0.5); 
+            overflow-y: auto; touch-action: auto;
+        }
+
+        .modal-title { font-size: 7px; margin-bottom: 8px; text-align: center; color: #fbbf24; border-bottom: 2px solid #333; padding-bottom: 4px; }
+        .list-item { font-size: 5px; display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #222; align-items: center; }
+        
+        .action-btn { background: #4ade80; color: #000; padding: 3px 5px; cursor: pointer; border: 2px solid #000; box-shadow: inset -1px -1px 0 #166534; font-size: 4px; }
+        .action-btn.disabled { background: #666; cursor: not-allowed; opacity: 0.6; }
+        
+        .fav-btn { color: #444; cursor: pointer; font-size: 10px; transition: color 0.2s; padding: 0 4px; }
+        .fav-btn.active { color: #fbbf24; }
+
+        .sell-all-btn { background: #fbbf24; color: #000; padding: 6px; width: 100%; text-align: center; margin-top: 8px; font-size: 6px; cursor: pointer; border: 2px solid #000; box-shadow: inset -2px -2px 0 #b45309; }
+
+        .message-box {
+            position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
+            display: none; text-align: center; z-index: 100; width: 85%; font-size: 7px;
+            background: transparent; padding: 0; border: none; box-shadow: none;
+        }
+        .message-fish-preview { 
+            margin: 5px auto; 
+            height: 60px; 
+            width: 100px;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            background: transparent;
+        }
+        
+        .close-btn { 
+            position: sticky; top: -2px; float: right; 
+            background: #f87171; width: 20px; height: 20px; 
+            border: 2px solid #000; display: flex; justify-content: center; 
+            align-items: center; font-size: 8px; cursor: pointer; 
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.3); z-index: 1010;
+            margin-bottom: -15px;
+        }
+
+        .index-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .index-slot { background: #1a1a2e; aspect-ratio: 1; border: 1px solid #333; display: flex; align-items: center; justify-content: center; position: relative; }
+        .index-slot.discovered { border-color: #fbbf24; background: #2d1301; }
+        .index-canvas-mini { width: 100%; height: 100%; image-rendering: pixelated; }
+        .unknown-icon { font-size: 8px; color: #444; }
+
+        .movement-controls {
+            position: absolute; bottom: 4vh; left: 15px; display: flex; gap: 8px; z-index: 70;
+        }
+        
+        .jump-controls {
+            position: absolute; bottom: 4vh; right: 20px; z-index: 70; 
+        }
+
+        .move-btn {
+            width: 48px; height: 48px; background: #2d1301; border: 4px solid #000;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: inset -3px -3px 0 #1a0a00, inset 3px 3px 0 #4d260b, 4px 4px 0 rgba(0,0,0,0.3);
+            cursor: pointer; transition: transform 0.05s;
+        }
+        .move-btn:active { transform: translateY(2px); }
+
+        .rarity-common { color: #9ca3af; }
+        .rarity-uncommon { color: #4ade80; }
+        .rarity-rare { color: #3b82f6; }
+        .rarity-epic { color: #a855f7; }
+        .rarity-legendary { color: #fbbf24; animation: flash-gold 1s infinite; }
+        .rarity-mythic { color: #06b6d4; text-shadow: 0 0 4px #06b6d4; animation: pulse 0.8s infinite; }
+        .rarity-secret { color: #ef4444; text-shadow: 0 0 8px #ff0000; animation: flash-red 0.5s infinite; }
+
+        @keyframes flash-gold { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes flash-red { 0% { color: #ef4444; } 50% { color: #000; } 100% { color: #ef4444; } }
+
+        .bait-ui {
+            position: absolute; right: 12px; top: 110px; display: flex; flex-direction: column; gap: 6px; z-index: 40;
+        }
+        .bait-slot {
+            width: 34px; height: 34px; background: #2d1301; border: 2px solid #000;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            position: relative; transition: all 0.2s;
+            box-shadow: inset -2px -2px 0 #1a0a00, 3px 3px 0 rgba(0,0,0,0.3);
+        }
+        .bait-slot.active { 
+            border-color: #fbbf24; 
+            transform: translateX(-3px); 
+            box-shadow: 0 0 8px #fbbf24, 3px 3px 0 rgba(0,0,0,0.3);
+        }
+        .bait-count { position: absolute; bottom: -2px; right: -2px; background: #000; font-size: 4px; padding: 1px 2px; border: 1px solid #fff; }
+        .bait-slot svg { width: 22px; height: 22px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.4)); }
+
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="game-container">
+        <div class="top-ui">
+            <div class="header-row">
+                <div class="combined-stat-box" style="flex-direction: column; align-items: flex-start;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div class="stat-text">
+                            <div id="score-display">IKAN: 0</div>
+                            <div id="coin-display" style="color: #fbbf24;">0 G</div>
+                        </div>
+                        <div class="nav-icons">
+                            <button class="icon-btn" onclick="toggleModal('bag-modal')" title="Inventaris">
+                                <svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering: crispEdges;">
+                                    <rect x="3" y="4" width="10" height="9" fill="#92400e"/>
+                                    <rect x="3" y="4" width="10" height="2" fill="#d97706"/>
+                                    <rect x="5" y="2" width="6" height="3" fill="#78350f"/>
+                                    <rect x="6" y="3" width="4" height="1" fill="#451a03"/>
+                                    <rect x="7" y="7" width="2" height="3" fill="#fbbf24"/>
+                                    <rect x="4" y="10" width="8" height="1" fill="#451a03"/>
+                                </svg>
+                            </button>
+                            <button class="icon-btn" onclick="toggleModal('shop-modal')" title="Toko">
+                                <svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering: crispEdges;">
+                                    <rect x="1" y="2" width="14" height="4" fill="#ef4444"/>
+                                    <rect x="1" y="6" width="14" height="8" fill="#fbbf24"/>
+                                    <rect x="3" y="6" width="1" height="8" fill="#000" opacity="0.1"/>
+                                    <rect x="7" y="6" width="1" height="8" fill="#000" opacity="0.1"/>
+                                    <rect x="11" y="6" width="1" height="8" fill="#000" opacity="0.1"/>
+                                    <rect x="4" y="9" width="8" height="3" fill="#fff" opacity="0.5"/>
+                                </svg>
+                            </button>
+                            <button class="icon-btn" onclick="toggleModal('index-modal')" title="Koleksi">
+                                <svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering: crispEdges;">
+                                    <rect x="3" y="2" width="10" height="12" fill="#3b82f6"/>
+                                    <rect x="4" y="3" width="8" height="10" fill="#f8fafc"/>
+                                    <rect x="3" y="2" width="2" height="12" fill="#1d4ed8"/>
+                                    <rect x="6" y="5" width="4" height="1" fill="#94a3b8"/>
+                                    <rect x="6" y="7" width="5" height="1" fill="#94a3b8"/>
+                                    <rect x="6" y="9" width="3" height="1" fill="#94a3b8"/>
+                                </svg>
+                            </button>
+                            <button class="icon-btn" onclick="toggleModal('mission-modal')" title="Misi">
+                                <svg width="24" height="24" viewBox="0 0 16 16" style="shape-rendering: crispEdges;">
+                                    <rect x="2" y="2" width="12" height="12" fill="#10b981"/>
+                                    <rect x="3" y="3" width="10" height="10" fill="#064e3b" opacity="0.2"/>
+                                    <rect x="5" y="7" width="2" height="2" fill="#fff"/>
+                                    <rect x="7" y="9" width="2" height="2" fill="#fff"/>
+                                    <rect x="9" y="5" width="2" height="6" fill="#fff"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="width: 100%;">
+                        <div id="level-display" style="font-size: 5px; color: #a855f7; margin-bottom: 2px;">LV. 1</div>
+                        <div class="xp-container"><div id="xp-fill"></div></div>
+                    </div>
+                </div>
+                
+                <div class="status-meta-group">
+                    <div id="weather-indicator">
+                        <div id="weather-svg-container"></div>
+                    </div>
+                    <div id="save-status" style="font-size: 5px; opacity: 0.5;"></div>
+                    <div id="event-alert">EVENT AKTIF!</div>
+                </div>
+            </div>
+            
+            <div id="potion-status-container" class="active-potion-box">
+                <div id="potion-icon-ui"></div>
+                <div class="stat-text">
+                    <div id="potion-name-ui" style="color: #4ade80; font-size: 5px;">NONE</div>
+                    <div id="potion-time-ui" style="color: #fff; font-size: 5px;">0s</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bait-ui">
+            <div id="bait-worm" class="bait-slot active" onclick="setBait('worm')" title="Standard Worm">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 18C4 18 6 14 10 14C14 14 10 8 14 8C18 8 20 12 20 12" stroke="#F87171" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M14 8C14 6.89543 14.8954 6 16 6" stroke="#FCA5A5" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="20" cy="12" r="1.5" fill="#EF4444"/>
+                </svg>
+                <div class="bait-count">∞</div>
+            </div>
+            <div id="bait-shrimp" class="bait-slot" onclick="setBait('shrimp')" title="Tasty Shrimp">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 14C4 14 8 8 14 8C20 8 20 14 20 14" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M20 14L22 16M20 14L22 12" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 10V12M12 9V12M16 10V12" stroke="#FDBA74" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="6" cy="13" r="1" fill="#000"/>
+                </svg>
+                <div id="count-shrimp" class="bait-count">0</div>
+            </div>
+            <div id="bait-lure" class="bait-slot" onclick="setBait('lure')" title="Master Lure">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="4" y="10" width="14" height="6" rx="3" fill="#3B82F6"/>
+                    <path d="M18 13H21M21 13L23 11M21 13L23 15" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="6" y="11" width="4" height="2" rx="1" fill="#60A5FA"/>
+                    <circle cx="15" cy="13" r="1.5" fill="#FFF"/>
+                    <circle cx="15" cy="13" r="0.5" fill="#000"/>
+                </svg>
+                <div id="count-lure" class="bait-count">0</div>
+            </div>
+        </div>
+
+        <div id="message" class="message-box">
+            <p id="message-text" style="color: #fbbf24; margin-bottom: 5px; text-shadow: 2px 2px 0 #000;">STRIKE!</p>
+            <div id="message-content"></div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="movement-controls">
+            <div class="move-btn" onmousedown="setMove(-1)" onmouseup="setMove(0)" ontouchstart="setMove(-1)" ontouchend="setMove(0)">
+                <svg width="20" height="20" viewBox="0 0 12 12"><path d="M8 2 L3 6 L8 10" stroke="#fff" fill="none" stroke-width="2"/></svg>
+            </div>
+            <div class="move-btn" onmousedown="setMove(1)" onmouseup="setMove(0)" ontouchstart="setMove(1)" ontouchend="setMove(0)">
+                <svg width="20" height="20" viewBox="0 0 12 12"><path d="M4 2 L9 6 L4 10" stroke="#fff" fill="none" stroke-width="2"/></svg>
+            </div>
+        </div>
+        
+        <div class="jump-controls">
+            <div class="move-btn" onclick="jump()" ontouchstart="jump()">
+                <svg width="20" height="20" viewBox="0 0 12 12"><path d="M2 9 L6 4 L10 9" stroke="#fff" fill="none" stroke-width="2.5"/></svg>
+            </div>
+        </div>
+
+        <div class="bottom-ui">
+            <button id="auto-fishing-btn" class="auto-btn" onclick="toggleAutoFishing()">AUTO: MATI</button>
+            <div id="tension-bar-container"><div id="tension-fill"></div></div>
+            <button id="main-action-btn" class="action-main-btn" onclick="handleClick()">LEMPAR</button>
+        </div>
+
+        <div id="mission-modal" class="modal">
+            <div class="close-btn" onclick="toggleModal('mission-modal')">X</div>
+            <div class="modal-title">MISI HARIAN</div>
+            <div id="mission-list"></div>
+            <div id="mission-refresh-timer" style="font-size: 4px; text-align: center; color: #666; margin-top: 3px;"></div>
+        </div>
+
+        <div id="shop-modal" class="modal">
+            <div class="close-btn" onclick="toggleModal('shop-modal')">X</div>
+            <div class="modal-title">TOKO UMPAN & RAMUAN</div>
+            <div style="font-size: 4px; color: #fbbf24; margin-bottom: 3px;">BELI ITEM</div>
+            <div class="list-item">
+                <span>UDANG (Rare Luck+)</span>
+                <span>25 G</span>
+                <div class="action-btn" onclick="buyBait('shrimp', 25)">BELI</div>
+            </div>
+            <div class="list-item">
+                <span>LURE (Legend Luck++)</span>
+                <span>60 G</span>
+                <div class="action-btn" onclick="buyBait('lure', 60)">BELI</div>
+            </div>
+            <div class="list-item">
+                <span>RAMUAN HOKI</span>
+                <span>75 G</span>
+                <div id="btn-LUCK_POTION" class="action-btn" onclick="buyPotion('LUCK_POTION', 75)">BELI</div>
+            </div>
+            <div class="list-item">
+                <span>RAMUAN KUAT</span>
+                <span>120 G</span>
+                <div id="btn-POWER_POTION" class="action-btn" onclick="buyPotion('POWER_POTION', 120)">BELI</div>
+            </div>
+            <div class="list-item">
+                <span>RAMUAN MUTASI</span>
+                <span>250 G</span>
+                <div id="btn-MUTASI_POTION" class="action-btn" onclick="buyPotion('MUTASI_POTION', 250)">BELI</div>
+            </div>
+        </div>
+
+        <div id="bag-modal" class="modal">
+            <div class="close-btn" onclick="toggleModal('bag-modal')">X</div>
+            <div class="modal-title">TAS</div>
+            <div id="inventory-list"></div>
+            <div id="sell-all" class="sell-all-btn" onclick="sellAllFish()">JUAL SEMUA (KECUALI ★)</div>
+        </div>
+
+        <div id="index-modal" class="modal">
+            <div class="close-btn" onclick="toggleModal('index-modal')">X</div>
+            <div class="modal-title">INDEKS IKAN</div>
+            <div id="index-grid-container" class="index-grid"></div>
+            <div id="index-detail" style="margin-top:5px; font-size:5px; text-align:center; color:#4ade80;"></div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const tensionContainer = document.getElementById('tension-bar-container');
+    const tensionFill = document.getElementById('tension-fill');
+    const messageBox = document.getElementById('message');
+    const messageText = document.getElementById('message-text');
+    const messageContent = document.getElementById('message-content');
+    const mainBtn = document.getElementById('main-action-btn');
+    const autoBtn = document.getElementById('auto-fishing-btn');
+    const saveStatus = document.getElementById('save-status');
+
+    canvas.width = 360; canvas.height = 640;
+
+    // AUDIO SYSTEM
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playSound(freq, type, duration, vol = 0.1) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    const SFX = {
+        bite: () => { playSound(880, 'square', 0.1); setTimeout(() => playSound(1200, 'square', 0.15), 50); },
+        splash: () => playSound(150, 'sawtooth', 0.2, 0.05),
+        cast: () => { playSound(400, 'sine', 0.1); playSound(600, 'sine', 0.1); },
+        victory: () => { 
+            const notes = [523, 659, 783, 1046];
+            notes.forEach((f, i) => setTimeout(() => playSound(f, 'triangle', 0.2), i * 100));
+        },
+        click: () => playSound(440, 'sine', 0.05, 0.05),
+        fail: () => { playSound(200, 'sawtooth', 0.3); playSound(150, 'sawtooth', 0.4); }
+    };
+    
+    const GAME_STATE = { IDLE: 'idle', CASTING: 'casting', WAITING: 'waiting', BITE: 'bite', REELING: 'reeling', CAUGHT: 'caught' };
+    let currentState = GAME_STATE.IDLE;
+    
+    let score = 0, coins = 0, tension = 0, lastTime = 0, shakeAmount = 0;
+    let inventory = [];
+    let isAutoFishing = false;
+    let discoveredFish = new Set();
+    let activePotion = null;
+    let potionTimer = 0;
+
+    let activeEvent = null; 
+    let eventTimer = 0;
+    let nextEventCounter = 60; 
+
+    let dailyMissions = [];
+    let missionRefreshCounter = 300; 
+
+    let level = 1, xp = 0;
+    const xpPerLevel = (l) => l * 100;
+
+    let upgrades = { rod: 0, reel: 0 };
+
+    let currentBait = 'worm';
+    let baits = { worm: Infinity, shrimp: 0, lure: 0 };
+    
+    let castingProgress = 0;
+    let reelRotation = 0;
+    let splashParticles = [];
+
+    const WEATHER = { RAIN: 'HUJAN', STORM: 'BADAI' };
+    let currentWeather = WEATHER.RAIN;
+    let weatherTimer = 20; 
+    let rainDrops = [];
+    let flashAlpha = 0;
+    let lightningBolt = null;
+
+    let laserIntensity = 0; 
+
+    const RARITY = {
+        COMMON: { name: "COMMON", color: "#9ca3af", weight: 1.0, chance: 65, xp: 10 },
+        UNCOMMON: { name: "UNCOMMON", color: "#4ade80", weight: 1.8, chance: 20, xp: 25 },
+        RARE: { name: "RARE", color: "#3b82f6", weight: 3.5, chance: 10, xp: 60 },
+        EPIC: { name: "EPIC", color: "#a855f7", weight: 6.0, chance: 3.5, xp: 150 },
+        LEGENDARY: { name: "LEGENDARY", color: "#fbbf24", weight: 12.0, chance: 1.0, xp: 500 },
+        MYTHIC: { name: "MYTHIC", color: "#06b6d4", weight: 25.0, chance: 0.4, xp: 1200 },
+        SECRET: { name: "SECRET", color: "#ef4444", weight: 50.0, chance: 0.1, xp: 3000 }
+    };
+
+    const potionData = {
+        'LUCK_POTION': { color: '#4ade80', name: 'HOKI', effect: 'KEBERUNTUNGAN NAIK TAJAM!' },
+        'POWER_POTION': { color: '#f87171', name: 'KUAT', effect: 'TENAGA TARIKAN +++!' },
+        'MUTASI_POTION': { color: '#c026d3', name: 'MUTASI', effect: 'PELUANG UKURAN RAKSASA!' }
+    };
+
+    const player = { x: 50, y: 395, baseY: 395, vy: 0, gravity: 0.4, bobber: { x: 0, y: 0, active: false, targetX: 0 }, moveDir: 0, speed: 2, isJumping: false };
+    
+    const fishDatabase = [
+        { id: 0, name: "LELE DUMBO", val: 5, color: "#4b5563", secondary: "#1f2937", minW: 0.5, maxW: 2.0, rarity: "COMMON" },
+        { id: 1, name: "MUJAIR", val: 8, color: "#9ca3af", secondary: "#4b5563", minW: 0.3, maxW: 1.2, rarity: "COMMON" },
+        { id: 2, name: "GURAME", val: 15, color: "#d1d5db", secondary: "#6b7280", minW: 1.0, maxW: 4.0, rarity: "UNCOMMON" },
+        { id: 3, name: "BANDENG", val: 12, color: "#e5e7eb", secondary: "#9ca3af", minW: 0.8, maxW: 2.5, rarity: "COMMON" },
+        { id: 4, name: "GABUS", val: 20, color: "#374151", secondary: "#111827", minW: 1.0, maxW: 5.0, rarity: "UNCOMMON" },
+        { id: 5, name: "ARAWANA PERAK", val: 50, color: "#f3f4f6", secondary: "#d1d5db", minW: 2.0, maxW: 8.0, rarity: "RARE" },
+        { id: 6, name: "PATIN ALBIN", val: 45, color: "#fff1f2", secondary: "#fecdd3", minW: 3.0, maxW: 10.0, rarity: "RARE" },
+        { id: 7, name: "IKAN SEPAT", val: 10, color: "#a5b4fc", secondary: "#6366f1", minW: 0.1, maxW: 0.4, rarity: "COMMON" },
+        { id: 8, name: "BAUNG", val: 25, color: "#78350f", secondary: "#451a03", minW: 1.5, maxW: 6.0, rarity: "UNCOMMON" },
+        { id: 9, name: "BELIDA", val: 60, color: "#94a3b8", secondary: "#475569", minW: 2.0, maxW: 12.0, rarity: "RARE" },
+        { id: 10, name: "TUNA SIRIP KUNING", val: 120, color: "#1e3a8a", secondary: "#fbbf24", minW: 15.0, maxW: 80.0, rarity: "EPIC" },
+        { id: 11, name: "KERAPU CANTANG", val: 85, color: "#065f46", secondary: "#064e3b", minW: 5.0, maxW: 25.0, rarity: "RARE" },
+        { id: 12, name: "KAKAP MERAH", val: 70, color: "#ef4444", secondary: "#991b1b", minW: 2.0, maxW: 15.0, rarity: "RARE" },
+        { id: 13, name: "IKAN NAGA EMAS", val: 500, color: "#fbbf24", secondary: "#d97706", minW: 10.0, maxW: 50.0, rarity: "LEGENDARY" },
+        { id: 14, name: "LELE KRAMAT", val: 300, color: "#1e1b4b", secondary: "#4338ca", minW: 5.0, maxW: 20.0, rarity: "EPIC" },
+        { id: 15, name: "MUJAIR PELANGI", val: 200, color: "#ec4899", secondary: "#8b5cf6", minW: 0.5, maxW: 1.5, rarity: "EPIC" },
+        { id: 16, name: "GURAME BATU", val: 150, color: "#4b5563", secondary: "#000000", minW: 10.0, maxW: 30.0, rarity: "EPIC" },
+        { id: 17, name: "HIU DARAT", val: 400, color: "#334155", secondary: "#0f172a", minW: 20.0, maxW: 100.0, rarity: "LEGENDARY" },
+        { id: 18, name: "PAUS MINI CYAN", val: 800, color: "#06b6d4", secondary: "#083344", minW: 50.0, maxW: 150.0, rarity: "MYTHIC" },
+        { id: 19, name: "MOLA-MOLA PIXEL", val: 950, color: "#22d3ee", secondary: "#164e63", minW: 40.0, maxW: 200.0, rarity: "MYTHIC" },
+        { id: 20, name: "IKAN BAYANGAN", val: 1500, color: "#000000", secondary: "#1a1a1a", minW: 0.1, maxW: 99.0, rarity: "SECRET" },
+        { id: 21, name: "NYAI LAUT", val: 2000, color: "#10b981", secondary: "#ffffff", minW: 5.0, maxW: 15.0, rarity: "SECRET" }
+    ];
+
+    let currentFish = null;
+    let caughtFishAnim = { active: false, x: 0, y: 0, vy: 0, color: '#fff', secondary: '#000', w: 12, h: 7, rarity: "COMMON", rotation: 0 };
+
+    window.setMove = (dir) => { 
+        if(currentState === GAME_STATE.IDLE || currentState === GAME_STATE.CAUGHT) {
+            player.moveDir = dir; 
+        } else {
+            player.moveDir = 0;
+        }
+    };
+
+    window.jump = () => {
+        initAudio();
+        if(!player.isJumping && (currentState === GAME_STATE.IDLE || currentState === GAME_STATE.CAUGHT)) {
+            player.vy = -7.5;
+            player.isJumping = true;
+            SFX.click();
+        }
+    };
+    
+    window.addXP = (amount) => {
+        xp += amount;
+        while (xp >= xpPerLevel(level)) {
+            xp -= xpPerLevel(level);
+            level++;
+            showMessage("LEVEL UP: " + level);
+            SFX.victory();
+        }
+        updateUI();
+    };
+
+    window.buyBait = (type, cost) => {
+        initAudio();
+        if (coins >= cost) {
+            coins -= cost;
+            baits[type] += 5;
+            updateUI();
+            saveGameData();
+            showMessage("+5 " + type.toUpperCase());
+            SFX.click();
+        } else {
+            showMessage("G TIDAK CUKUP!");
+        }
+    };
+
+    window.setBait = (type) => {
+        initAudio();
+        if (baits[type] > 0 || type === 'worm') {
+            currentBait = type;
+            document.querySelectorAll('.bait-slot').forEach(s => s.classList.remove('active'));
+            document.getElementById('bait-' + type).classList.add('active');
+            showMessage("PAKAI: " + type.toUpperCase());
+            SFX.click();
+            setTimeout(hideMessage, 800);
+        } else {
+            showMessage("UMPAN HABIS!");
+        }
+    };
+
+    window.addEventListener('keydown', (e) => {
+        if(e.key === "ArrowLeft") setMove(-1);
+        if(e.key === "ArrowRight") setMove(1);
+        if(e.key === " " || e.key === "ArrowUp") jump();
+    });
+    window.addEventListener('keyup', (e) => {
+        if(e.key === "ArrowLeft" || e.key === "ArrowRight") setMove(0);
+    });
+
+    function drawOrganicFish(targetCtx, x, y, width, height, color, secondary, rarity, scale = 1, rotation = 0) {
+        targetCtx.save(); targetCtx.translate(x, y); 
+        targetCtx.rotate(rotation);
+        targetCtx.scale(scale, scale);
+        targetCtx.fillStyle = color; targetCtx.beginPath(); targetCtx.moveTo(0, 0); 
+        targetCtx.bezierCurveTo(width * 0.3, -height * 0.8, width * 0.7, -height * 0.8, width, -height * 0.1);
+        targetCtx.lineTo(width * 1.1, 0); targetCtx.bezierCurveTo(width * 0.7, height * 0.8, width * 0.3, height * 0.8, 0, 0);
+        targetCtx.closePath(); targetCtx.fill();
+        targetCtx.fillStyle = secondary; targetCtx.beginPath(); targetCtx.moveTo(width * 0.3, -height * 0.5);
+        targetCtx.quadraticCurveTo(width * 0.5, -height * 1.2, width * 0.7, -height * 0.4); targetCtx.fill();
+        targetCtx.beginPath(); targetCtx.moveTo(width * 0.4, height * 0.5);
+        targetCtx.quadraticCurveTo(width * 0.6, height * 1.0, width * 0.75, height * 0.4); targetCtx.fill();
+        targetCtx.beginPath(); targetCtx.moveTo(width, 0);
+        targetCtx.bezierCurveTo(width * 1.3, -height * 0.8, width * 1.5, -height * 0.5, width * 1.4, 0);
+        targetCtx.bezierCurveTo(width * 1.5, height * 0.5, width * 1.3, height * 0.8, width, 0); targetCtx.fill();
+        targetCtx.fillStyle = "#fff"; targetCtx.beginPath();
+        targetCtx.arc(width * 0.15, -height * 0.1, Math.max(1, height * 0.15), 0, Math.PI * 2); targetCtx.fill();
+        targetCtx.fillStyle = "#000"; targetCtx.beginPath();
+        targetCtx.arc(width * 0.17, -height * 0.1, Math.max(0.5, height * 0.08), 0, Math.PI * 2); targetCtx.fill();
+        if (rarity === "LEGENDARY" || rarity === "MYTHIC" || rarity === "SECRET") {
+            targetCtx.strokeStyle = rarity === "SECRET" ? "#ff0000" : "#fff"; targetCtx.lineWidth = 1; targetCtx.stroke();
+        }
+        targetCtx.restore();
+    }
+
+    function createSplash(x, y) {
+        SFX.splash();
+        for(let i=0; i<8; i++) {
+            splashParticles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: -Math.random() * 4 - 2,
+                life: 1.0,
+                size: 2 + Math.random() * 3
+            });
+        }
+    }
+
+    function getRarityClass(rarityName) { return 'rarity-' + rarityName.toLowerCase(); }
+
+    function updateWeatherIndicator() {
+        const container = document.getElementById('weather-svg-container');
+        let svg = '';
+        if (currentWeather === WEATHER.RAIN) {
+            svg = `<svg width="20" height="20" viewBox="0 0 12 12" style="shape-rendering: crispEdges;"><rect x="3" y="4" width="6" height="3" fill="#94a3b8"/><rect x="3" y="8" width="1" height="2" fill="#60a5fa"/><rect x="5" y="8" width="1" height="2" fill="#60a5fa"/><rect x="8" y="8" width="1" height="2" fill="#60a5fa"/></svg>`;
+        } else if (currentWeather === WEATHER.STORM) {
+            svg = `<svg width="20" height="20" viewBox="0 0 12 12" style="shape-rendering: crispEdges;"><rect x="3" y="4" width="6" height="3" fill="#475569"/><path d="M6 6 L4 9 L6 9 L5 11" stroke="#fbbf24" stroke-width="1" fill="none"/></svg>`;
+        }
+        container.innerHTML = svg;
+    }
+
+    function saveGameData() {
+        saveStatus.innerText = "SIMPAN...";
+        const dataToSave = { 
+            score, coins, inventory: JSON.stringify(inventory), 
+            discoveredFish: Array.from(discoveredFish), activePotion, 
+            potionTimer, lastSaved: Date.now(),
+            level, xp, upgrades, baits, dailyMissions, missionRefreshCounter
+        };
+        localStorage.setItem('pixel_pier_save_v2', JSON.stringify(dataToSave));
+        saveStatus.innerText = "TERSMPN";
+        setTimeout(() => { if(saveStatus.innerText === "TERSMPN") saveStatus.innerText = ""; }, 2000);
+    }
+
+    function loadGameData() {
+        const savedData = localStorage.getItem('pixel_pier_save_v2');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            score = data.score || 0; coins = data.coins || 0;
+            inventory = data.inventory ? JSON.parse(data.inventory) : [];
+            discoveredFish = new Set(data.discoveredFish || []);
+            activePotion = data.activePotion || null; potionTimer = data.potionTimer || 0;
+            level = data.level || 1; xp = data.xp || 0;
+            upgrades = data.upgrades || { rod: 0, reel: 0 };
+            baits = data.baits || { worm: Infinity, shrimp: 0, lure: 0 };
+            dailyMissions = data.dailyMissions || [];
+            missionRefreshCounter = data.missionRefreshCounter || 300;
+            if(dailyMissions.length === 0) generateMissions();
+            updateUI(); updatePotionUI(); saveStatus.innerText = "SIAP";
+        } else { 
+            saveStatus.innerText = "BARU"; 
+            generateMissions();
+        }
+    }
+
+    function generateMissions() {
+        const types = [
+            { id: 1, name: "Tangkap 5 Ikan", target: 5, reward: 50 },
+            { id: 1, name: "Tangkap 10 Ikan", target: 10, reward: 120 },
+            { id: 2, name: "Cari Ikan Rare", target: 1, reward: 80 },
+            { id: 2, name: "Cari 2 Ikan Rare", target: 2, reward: 180 },
+            { id: 3, name: "Tangkap 3 Uncommon", target: 3, reward: 70 }
+        ];
+        const shuffled = types.sort(() => 0.5 - Math.random());
+        dailyMissions = shuffled.slice(0, 2).map(m => ({ ...m, current: 0, completed: false }));
+        missionRefreshCounter = 300;
+        updateMissionUI();
+        saveGameData();
+    }
+
+    window.onload = function() {
+        loadGameData(); updateWeatherIndicator();
+        for(let i=0; i<100; i++) rainDrops.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: 4+Math.random()*4});
+        requestAnimationFrame(gameLoop);
+    };
+
+    window.toggleAutoFishing = function() {
+        initAudio();
+        isAutoFishing = !isAutoFishing;
+        autoBtn.innerText = isAutoFishing ? "AUTO: NYALA" : "AUTO: MATI";
+        autoBtn.className = isAutoFishing ? "auto-btn active" : "auto-btn";
+        SFX.click();
+        if (isAutoFishing && currentState === GAME_STATE.IDLE) handleClick();
+    };
+
+    window.handleClick = function() {
+        initAudio();
+        if (currentState === GAME_STATE.IDLE) startCasting();
+        else if (currentState === GAME_STATE.WAITING) resetGame();
+        else if (currentState === GAME_STATE.BITE) startReeling();
+        else if (currentState === GAME_STATE.REELING) { 
+            let baseStr = (activePotion === 'POWER_POTION') ? 35 : 20;
+            tension += baseStr; 
+            shakeAmount = 4; reelRotation += 1.5; 
+            SFX.click();
+        }
+        else if (currentState === GAME_STATE.CAUGHT) resetGame();
+        updateButtonLabel();
+    };
+
+    function updateButtonLabel() {
+        if (currentState === GAME_STATE.IDLE || currentState === GAME_STATE.WAITING || currentState === GAME_STATE.CAUGHT) mainBtn.innerText = "LEMPAR";
+        else if (currentState === GAME_STATE.BITE || currentState === GAME_STATE.REELING) mainBtn.innerText = "TARIK!";
+    }
+
+    function startCasting() {
+        player.moveDir = 0;
+        SFX.cast();
+        currentState = GAME_STATE.CASTING; player.bobber.active = true;
+        player.bobber.x = player.x + 25; player.bobber.y = player.y - 20;
+        player.bobber.targetX = player.x + 110 + Math.random() * 120;
+        if(player.bobber.targetX > canvas.width - 20) player.bobber.targetX = canvas.width - 40;
+        const dur = 850, startX = player.bobber.x, startY = player.bobber.y, startT = Date.now();
+        updateButtonLabel();
+        function anim() {
+            const p = (Date.now() - startT) / dur;
+            castingProgress = p; 
+            if (p < 1) {
+                player.bobber.x = startX + (player.bobber.targetX - startX) * p;
+                player.bobber.y = startY + Math.sin(p * Math.PI) * -140 + (500 - startY) * p;
+                requestAnimationFrame(anim);
+            } else { 
+                player.bobber.x = player.bobber.targetX; player.bobber.y = 500; 
+                currentState = GAME_STATE.WAITING; castingProgress = 0; 
+                createSplash(player.bobber.x, player.bobber.y);
+                updateButtonLabel(); waitForBite(); 
+            }
+        }
+        anim();
+    }
+
+    function waitForBite() { 
+        let biteChance = (activePotion === 'LUCK_POTION' || activeEvent === 'SUPER_LUCK') ? 300 : 1000;
+        if (currentBait === 'worm') biteChance *= 0.75;
+        else if (currentBait === 'shrimp') biteChance *= 0.5;
+        else if (currentBait === 'lure') biteChance *= 0.3;
+        biteChance *= (currentWeather === WEATHER.STORM ? 0.4 : 0.6);
+        setTimeout(() => { 
+            if (currentState === GAME_STATE.WAITING) { 
+                let rand = Math.random() * 100;
+                if (activePotion === 'LUCK_POTION' || activeEvent === 'SUPER_LUCK') rand *= 0.1;
+                if (currentBait === 'shrimp') rand *= 0.5; 
+                else if (currentBait === 'lure') rand *= 0.2; 
+                
+                let targetRarity = "COMMON";
+                if (rand < RARITY.SECRET.chance) targetRarity = "SECRET";
+                else if (rand < RARITY.MYTHIC.chance) targetRarity = "MYTHIC";
+                else if (rand < RARITY.LEGENDARY.chance) targetRarity = "LEGENDARY";
+                else if (rand < RARITY.EPIC.chance) targetRarity = "EPIC";
+                else if (rand < RARITY.RARE.chance) targetRarity = "RARE";
+                else if (rand < RARITY.UNCOMMON.chance) targetRarity = "UNCOMMON";
+                
+                let pool = fishDatabase.filter(f => f.rarity === targetRarity);
+                if (pool.length === 0) pool = fishDatabase.filter(f => f.rarity === "COMMON");
+                currentFish = pool[Math.floor(Math.random() * pool.length)];
+
+                SFX.bite();
+                currentState = GAME_STATE.BITE; updateButtonLabel(); showMessage("!! STRIKE !!"); shakeAmount = 2; 
+                createSplash(player.bobber.x, player.bobber.y);
+                if (isAutoFishing) setTimeout(startReeling, 300);
+            } 
+        }, biteChance + Math.random() * 2000); 
+    }
+
+    function startReeling() { 
+        currentState = GAME_STATE.REELING; hideMessage(); 
+        tensionContainer.style.display = 'block'; tension = 30; 
+        
+        if (currentBait !== 'worm') {
+            baits[currentBait]--;
+            if (baits[currentBait] <= 0) { baits[currentBait] = 0; setBait('worm'); }
+        }
+
+        if (currentFish.rarity === "LEGENDARY" || currentFish.rarity === "MYTHIC" || currentFish.rarity === "SECRET") {
+            laserIntensity = 1.0;
+        }
+
+        updateUI(); updateButtonLabel(); 
+    }
+
+    function resetGame() { 
+        currentState = GAME_STATE.IDLE; player.bobber.active = false; 
+        tensionContainer.style.display = 'none'; hideMessage(); tension = 0; 
+        caughtFishAnim.active = false; castingProgress = 0;
+        updateButtonLabel(); 
+        if (isAutoFishing) setTimeout(startCasting, 1000);
+    }
+    
+    function showMessage(txt, fish = null) { 
+        messageText.innerText = txt; 
+        if(fish) {
+            const previewId = "fish-canvas-" + Date.now();
+            let sizeTag = "";
+            if (fish.weight > 100) sizeTag = " (RAKSASA)";
+            else if (fish.weight > 30) sizeTag = " (BESAR)";
+
+            messageContent.innerHTML = `<div class="message-fish-preview"><canvas id="${previewId}" width="100" height="60"></canvas></div><div class="${getRarityClass(fish.rarity)}" style="margin-bottom:4px; font-size: 8px; text-shadow: 1px 1px 0 #000;">[${fish.rarity}] ${fish.name}${sizeTag}</div><div style="color:#fff; font-size: 6px; text-shadow: 1px 1px 0 #000;">${fish.weight.toFixed(2)} KG ${fish.isBonus ? '(BONUS!)' : ''}</div>`;
+            setTimeout(() => {
+                const pCanvas = document.getElementById(previewId);
+                if (pCanvas) { const pCtx = pCanvas.getContext('2d'); pCtx.clearRect(0,0,100,60); drawOrganicFish(pCtx, 20, 30, 40, 20, fish.color, fish.secondary, fish.rarity); }
+            }, 10);
+        } else { messageContent.innerHTML = ""; }
+        messageBox.style.display = 'block'; 
+    }
+    
+    function hideMessage() { messageBox.style.display = 'none'; }
+
+    window.toggleModal = function(id) { 
+        initAudio();
+        const m = document.getElementById(id); 
+        document.querySelectorAll('.modal').forEach(mod => { if(mod.id !== id) mod.style.display = 'none'; });
+        m.style.display = (m.style.display === 'block') ? 'none' : 'block'; 
+        SFX.click();
+        if(id === 'bag-modal') updateBagUI(); 
+        if(id === 'index-modal') updateIndexUI();
+        if(id === 'shop-modal') updateUpgradeUI();
+        if(id === 'mission-modal') updateMissionUI();
+    };
+    
+    function updateUpgradeUI() {}
+
+    window.buyPotion = function(name, cost) { 
+        initAudio();
+        if(activePotion) { showMessage("MASIH AKTIF!"); setTimeout(hideMessage, 1000); return; }
+        if(coins >= cost) { coins -= cost; activePotion = name; potionTimer = 60; updateUI(); updatePotionUI(); showMessage(potionData[name].effect); SFX.click(); setTimeout(hideMessage, 1500); saveGameData(); }
+        else { showMessage("G TIDAK CUKUP!"); setTimeout(hideMessage, 1000); }
+    };
+
+    function updatePotionUI() {
+        const container = document.getElementById('potion-status-container');
+        Object.keys(potionData).forEach(key => {
+            const btn = document.getElementById('btn-'+key); if(btn) { if(activePotion) btn.classList.add('disabled'); else btn.classList.remove('disabled'); }
+        });
+        if (activePotion && potionTimer > 0) {
+            container.style.display = 'flex'; const data = potionData[activePotion];
+            document.getElementById('potion-name-ui').innerText = data.name + " AKTIF"; document.getElementById('potion-name-ui').style.color = data.color;
+            document.getElementById('potion-time-ui').innerText = Math.ceil(potionTimer) + "s";
+            document.getElementById('potion-icon-ui').innerHTML = `<svg width="18" height="18" viewBox="0 0 12 12" style="shape-rendering: crispEdges;"><rect x="4" y="2" width="4" height="2" fill="#d1d5db"/><rect x="3" y="4" width="6" height="6" fill="${data.color}"/></svg>`;
+        } else { container.style.display = 'none'; }
+    }
+
+    function updateMissionUI() {
+        const list = document.getElementById('mission-list');
+        list.innerHTML = '';
+        dailyMissions.forEach(m => {
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div style="font-size: 4px;">
+                    <div>${m.name}</div>
+                    <div style="color: #fbbf24;">${m.current}/${m.target}</div>
+                </div>
+                <div>${m.completed ? '<span style="color:#10b981;">DONE</span>' : `<span style="opacity:0.6;">${m.reward} G</span>`}</div>
+            `;
+            list.appendChild(item);
+        });
+        updateMissionTimerText();
+    }
+
+    function updateMissionTimerText() {
+        const mTimer = document.getElementById('mission-refresh-timer');
+        if(mTimer) mTimer.innerText = "BARU DALAM: " + Math.ceil(missionRefreshCounter) + "s";
+    }
+
+    function checkMissions(rarity) {
+        let changed = false;
+        dailyMissions.forEach(m => {
+            if (m.completed) return;
+            if (m.id === 1) { m.current++; changed = true; }
+            if (m.id === 2 && (rarity === 'RARE' || rarity === 'EPIC' || rarity === 'LEGENDARY')) { m.current++; changed = true; }
+            if (m.id === 3 && rarity === 'UNCOMMON') { m.current++; changed = true; }
+            if (m.current >= m.target) {
+                m.completed = true;
+                coins += m.reward;
+                SFX.victory();
+                showMessage("MISI SELESAI: +" + m.reward + "G");
+                setTimeout(hideMessage, 2000);
+            }
+        });
+        if (changed) { updateMissionUI(); saveGameData(); }
+    }
+
+    window.sellFish = function(index) { 
+        initAudio();
+        coins += inventory[index].val; inventory.splice(index, 1); updateBagUI(); updateUI(); saveGameData(); 
+        SFX.click();
+    };
+    
+    window.sellAllFish = function() { 
+        initAudio();
+        let soldAny = false;
+        inventory = inventory.filter(f => {
+            if (f.isFavorite) {
+                return true; 
+            } else {
+                coins += f.val;
+                soldAny = true;
+                return false; 
+            }
+        });
+        if (soldAny) {
+            SFX.click();
+            updateBagUI(); updateUI(); saveGameData(); 
+        }
+    };
+
+    window.toggleFavorite = function(index) {
+        initAudio();
+        inventory[index].isFavorite = !inventory[index].isFavorite;
+        SFX.click();
+        updateBagUI();
+        saveGameData();
+    };
+
+    function updateBagUI() {
+        const list = document.getElementById('inventory-list'); list.innerHTML = '';
+        if (inventory.length === 0) { list.innerHTML = '<div style="text-align:center; padding:10px; font-size:4px; opacity:0.5;">TAS KOSONG</div>'; return; }
+        inventory.forEach((item, i) => {
+            const row = document.createElement('div'); row.className = 'list-item';
+            const canvasId = `bag-canvas-${i}`;
+            let sizeTag = "";
+            if (item.weight > 100) sizeTag = " (RAKSASA)";
+            else if (item.weight > 30) sizeTag = " (BESAR)";
+
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="fav-btn ${item.isFavorite ? 'active' : ''}" onclick="toggleFavorite(${i})">★</div>
+                    <div style="width:24px; height:24px; background:#1a1a2e; border:1px solid #333; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <canvas id="${canvasId}" width="24" height="24" style="image-rendering:pixelated;"></canvas>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:1px;">
+                        <span class="${getRarityClass(item.rarity)}" style="font-size:4px;">${item.name}${sizeTag}</span>
+                        <span style="font-size:3px; opacity:0.7;">${item.weight.toFixed(2)} KG</span>
+                    </div>
+                </div>
+                <div class="action-btn" onclick="sellFish(${i})" style="min-width:35px; text-align:center;">${item.val} G</div>
+            `;
+            list.appendChild(row);
+            const bCanvas = document.getElementById(canvasId); const bCtx = bCanvas.getContext('2d');
+            drawOrganicFish(bCtx, 2, 12, 16, 8, item.color, item.secondary, item.rarity, 1);
+        });
+    }
+
+    function updateIndexUI() {
+        const grid = document.getElementById('index-grid-container'); const detail = document.getElementById('index-detail'); grid.innerHTML = '';
+        fishDatabase.forEach((fish, idx) => {
+            const slot = document.createElement('div'); slot.className = `index-slot ${discoveredFish.has(fish.id) ? 'discovered' : ''}`;
+            slot.onclick = () => showIndexDetail(idx);
+            if (discoveredFish.has(fish.id)) {
+                const iCanvas = document.createElement('canvas'); iCanvas.width = 30; iCanvas.height = 30; iCanvas.className = 'index-canvas-mini';
+                slot.appendChild(iCanvas); const iCtx = iCanvas.getContext('2d'); drawOrganicFish(iCtx, 5, 15, 18, 10, fish.color, fish.secondary, fish.rarity, 1);
+            } else { slot.innerHTML = '<span class="unknown-icon">?</span>'; }
+            grid.appendChild(slot);
+        });
+        detail.innerText = `KOLEKSI: ${discoveredFish.size} / ${fishDatabase.length}`;
+    }
+
+    window.showIndexDetail = function(idx) {
+        initAudio();
+        const fish = fishDatabase[idx]; if (!discoveredFish.has(fish.id)) return;
+        SFX.click();
+        document.getElementById('index-detail').innerHTML = `<span class="${getRarityClass(fish.rarity)}">${fish.name}</span><br/>EST: ${fish.val} G`;
+    };
+
+    function updateUI() { 
+        document.getElementById('score-display').innerText = `IKAN: ${score}`; 
+        document.getElementById('coin-display').innerText = `${coins} G`; 
+        document.getElementById('level-display').innerText = `LV. ${level}`;
+        let progress = (xp / xpPerLevel(level)) * 100;
+        document.getElementById('xp-fill').style.width = progress + '%';
+        document.getElementById('count-shrimp').innerText = baits.shrimp;
+        document.getElementById('count-lure').innerText = baits.lure;
+    }
+
+    function update(dt) {
+        weatherTimer -= dt/1000;
+        if(weatherTimer <= 0) {
+            const keys = Object.values(WEATHER); currentWeather = keys[Math.floor(Math.random()*keys.length)];
+            weatherTimer = 15 + Math.random()*20; updateWeatherIndicator();
+        }
+        missionRefreshCounter -= dt/1000;
+        if(missionRefreshCounter <= 0) { generateMissions(); showMessage("MISI BARU!"); setTimeout(hideMessage, 1500); }
+        if(document.getElementById('mission-modal').style.display === 'block') updateMissionTimerText();
+
+        nextEventCounter -= dt/1000;
+        if(nextEventCounter <= 0) {
+            nextEventCounter = 60; activeEvent = Math.random() > 0.5 ? 'SUPER_LUCK' : 'SUPER_MUTASI'; eventTimer = 15; 
+            const alertBox = document.getElementById('event-alert'); alertBox.style.display = 'block';
+            alertBox.innerText = activeEvent === 'SUPER_LUCK' ? "LUCK 100X" : "MUTASI 100X";
+        }
+        if(eventTimer > 0) { eventTimer -= dt/1000; if(eventTimer <= 0) { activeEvent = null; document.getElementById('event-alert').style.display = 'none'; } }
+
+        rainDrops.forEach(d => { d.y += d.s; if(d.y > canvas.height) { d.y = -10; d.x = Math.random()*canvas.width; } });
+        if(currentWeather === WEATHER.STORM && Math.random() < 0.01) { flashAlpha = 0.8; shakeAmount = 15; createLightning(); }
+        if(flashAlpha > 0) flashAlpha -= 0.05;
+        if(lightningBolt) { lightningBolt.life--; if(lightningBolt.life <= 0) lightningBolt = null; }
+
+        if (laserIntensity > 0) {
+            laserIntensity -= 0.005; 
+            shakeAmount = Math.max(shakeAmount, laserIntensity * 8); 
+            if (Math.random() < 0.3) createSplash(player.bobber.x, player.bobber.y);
+        }
+
+        if (shakeAmount > 0) shakeAmount *= 0.9;
+        if (potionTimer > 0) { potionTimer -= dt/1000; if (potionTimer <= 0) { activePotion = null; potionTimer = 0; saveGameData(); } updatePotionUI(); }
+        for(let i = splashParticles.length - 1; i >= 0; i--) {
+            let p = splashParticles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02; if(p.life <= 0) splashParticles.splice(i, 1);
+        }
+        if(player.moveDir !== 0) { player.x += player.moveDir * player.speed; if(player.x < 5) player.x = 5; if(player.x > 85) player.x = 85; }
+        if(player.isJumping) { player.y += player.vy; player.vy += player.gravity; if(player.y >= player.baseY) { player.y = player.baseY; player.vy = 0; player.isJumping = false; } }
+        
+        if (currentState === GAME_STATE.REELING) {
+            reelRotation += 0.2; 
+            if (isAutoFishing && tension < 40) { tension += (activePotion === 'POWER_POTION') ? 6 : 4; reelRotation += 0.5; }
+            tension -= 0.6;
+            if (tension <= 0 || tension >= 100) { 
+                SFX.fail();
+                resetGame(); showMessage(tension <= 0 ? "LEPAS!" : "PUTUS!"); laserIntensity = 0; setTimeout(hideMessage, 1200); 
+            }
+            else if (player.bobber.x > player.x + 40) { player.bobber.x -= 1.2; if(Math.random()<0.1) createSplash(player.bobber.x, player.bobber.y); }
+            else { 
+                let weightMult = (activePotion === 'MUTASI_POTION' || activeEvent === 'SUPER_MUTASI') ? 4.0 : 1.0;
+                weightMult *= (currentWeather === WEATHER.STORM ? 1.5 : 1.2);
+                const weight = (currentFish.minW + Math.random() * (currentFish.maxW - currentFish.minW)) * weightMult;
+                const newFish = { name: currentFish.name, val: Math.round(currentFish.val * weightMult * RARITY[currentFish.rarity].weight), weight: weight, color: currentFish.color, secondary: currentFish.secondary, w: 14 + (weight / 4), h: 8 + (weight / 8), isBonus: weightMult > 1.5, rarity: currentFish.rarity, isFavorite: false };
+                score++; discoveredFish.add(currentFish.id); addXP(RARITY[currentFish.rarity].xp);
+                inventory.push(newFish); checkMissions(currentFish.rarity);
+                updateUI(); currentState = GAME_STATE.CAUGHT; tensionContainer.style.display = 'none'; updateButtonLabel();
+                SFX.victory();
+                showMessage(`DAPAT!`, newFish); shakeAmount = (currentFish.rarity === 'SECRET' || currentFish.rarity === 'MYTHIC' || currentFish.rarity === 'LEGENDARY') ? 40 : 10;
+                caughtFishAnim = { active: true, x: player.x + 25, y: player.y, vy: -5, color: newFish.color, secondary: newFish.secondary, w: newFish.w, h: newFish.h, rarity: newFish.rarity, rotation: 0 };
+                saveGameData(); if (isAutoFishing) setTimeout(resetGame, 2000);
+            }
+            tensionFill.style.width = tension + '%';
+            tensionFill.style.backgroundColor = tension > 75 ? '#f87171' : tension > 45 ? '#fbbf24' : '#4ade80';
+        }
+        if(caughtFishAnim.active) { caughtFishAnim.y += caughtFishAnim.vy; caughtFishAnim.vy += 0.25; caughtFishAnim.rotation = Math.sin(Date.now() / 50) * 0.3; if(caughtFishAnim.y > player.y + 20) caughtFishAnim.vy = -Math.abs(caughtFishAnim.vy) * 0.4; }
+    }
+
+    function createLightning() {
+        const startX = Math.random() * canvas.width; const segments = []; let currX = startX, currY = 0;
+        for(let i=0; i<8; i++) {
+            let nextX = currX + (Math.random()-0.5) * 60; let nextY = currY + (Math.random() * 80);
+            segments.push({x1: currX, y1: currY, x2: nextX, y2: nextY}); currX = nextX; currY = nextY;
+        }
+        lightningBolt = { segments, life: 10 };
+    }
+
+    function draw() {
+        ctx.save(); if (shakeAmount > 0.1) ctx.translate((Math.random()-0.5)*shakeAmount, (Math.random()-0.5)*shakeAmount);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let skyGradient = ctx.createLinearGradient(0, 0, 0, 480);
+        if(currentWeather === WEATHER.RAIN) { skyGradient.addColorStop(0, "#0f172a"); skyGradient.addColorStop(1, "#334155"); }
+        else if(currentWeather === WEATHER.STORM) { skyGradient.addColorStop(0, "#020617"); skyGradient.addColorStop(1, "#1e293b"); }
+        ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, canvas.width, 480);
+        ctx.fillStyle = "#1e3a8a"; ctx.fillRect(0, 480, canvas.width, 160);
+        ctx.fillStyle = "#172554"; ctx.fillRect(0, 560, canvas.width, 80);
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        for(let i=0; i<12; i++) { let shift = Math.sin(Date.now()/800 + i) * 20; ctx.fillRect(((Date.now()/40 + i*120) % canvas.width) + shift, 490 + i*12, 60, 2); }
+        ctx.fillStyle = "#1a0a00"; ctx.fillRect(20, 455, 12, 185); ctx.fillRect(90, 455, 12, 185); 
+        ctx.fillStyle = "#451a03"; ctx.fillRect(0, 435, 130, 20); 
+        ctx.fillStyle = "#2d1301"; for(let j=0; j<130; j+=10) { ctx.fillRect(j, 435, 3, 20); } 
+        ctx.fillStyle = "#1a0a00"; ctx.fillRect(0, 435, 130, 3); 
+        const drawFishBlock = (bx, by, size, showFishLogo = false) => {
+            ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(bx+2, by+2, size, size);
+            ctx.fillStyle = "#78350f"; ctx.fillRect(bx, by, size, size); 
+            ctx.fillStyle = "#451a03"; ctx.fillRect(bx+2, by+6, size-4, 1); ctx.fillRect(bx+2, by+14, size-4, 1);
+            ctx.fillRect(bx, by, size, 2); ctx.fillRect(bx, by+size-2, size, 2); ctx.fillRect(bx, by, 2, size); ctx.fillRect(bx+size-2, by, 2, size); 
+            if(showFishLogo) { ctx.fillStyle = "#94a3b8"; ctx.fillRect(bx+5, by+9, 10, 3); ctx.fillRect(bx+7, by+8, 6, 1); ctx.fillRect(bx+7, by+12, 6, 1); ctx.fillRect(bx+14, by+8, 2, 5); ctx.fillStyle = "#000"; ctx.fillRect(bx+6, by+9, 1, 1); }
+        };
+        drawFishBlock(15, 412, 22, true); drawFishBlock(40, 412, 22, true); drawFishBlock(27, 394, 22, true); 
+        const drawPierLamp = (lx, ly) => {
+            let bob = Math.sin(Date.now()/600) * 1.5; ctx.fillStyle = "#1a0a00"; ctx.fillRect(lx-2, ly-60, 4, 60); ctx.fillRect(lx-2, ly-58, 12, 3); 
+            let lanternY = ly - 58 + bob; ctx.fillStyle = "#451a03"; ctx.fillRect(lx+6, lanternY, 8, 10); 
+            let glow = ctx.createRadialGradient(lx+10, lanternY+5, 2, lx+10, lanternY+5, 25);
+            glow.addColorStop(0, "rgba(251, 191, 36, 0.5)"); glow.addColorStop(1, "rgba(251, 191, 36, 0)");
+            ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(lx+10, lanternY+5, 25, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#fbbf24"; ctx.fillRect(lx+8, lanternY+2, 4, 6); 
+        };
+        drawPierLamp(8, 435);
+        if(caughtFishAnim.active) drawOrganicFish(ctx, caughtFishAnim.x, caughtFishAnim.y, caughtFishAnim.w, caughtFishAnim.h, caughtFishAnim.color, caughtFishAnim.secondary, caughtFishAnim.rarity, 1, caughtFishAnim.rotation);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; splashParticles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillRect(p.x, p.y, p.size, p.size); }); ctx.globalAlpha = 1.0;
+        let breathe = Math.sin(Date.now()/400) * 1.5; let py = player.y + breathe; let px = player.x;
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(px + 12, player.baseY + 40, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#111"; ctx.fillRect(px + 2, player.y + 36, 8, 5); ctx.fillRect(px + 14, player.y + 36, 8, 5);
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(px + 3, player.y + 28, 6, 8); ctx.fillRect(px + 15, player.y + 28, 6, 8); ctx.fillRect(px + 3, player.y + 26, 18, 4);
+        ctx.fillStyle = "#3b82f6"; ctx.fillRect(px + 2, py + 12, 20, 15); ctx.fillStyle = "#2563eb"; ctx.fillRect(px + 2, py + 23, 20, 4); ctx.fillRect(px + 11, py + 12, 2, 15);
+        
+        ctx.fillStyle = "#1e293b"; 
+        let reelAngle = (Date.now() / 80);
+        if (currentState === GAME_STATE.REELING) {
+            let hx = px + 22 + Math.cos(reelAngle) * 6; let hy = py + 16 + Math.sin(reelAngle) * 6; 
+            ctx.fillStyle = "#fecaca"; ctx.fillRect(hx, hy, 4, 4); 
+            ctx.fillStyle = "#64748b"; ctx.save(); ctx.translate(px + 24, py + 18); ctx.rotate(reelRotation); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+        } else if (currentState === GAME_STATE.CASTING) {
+            let castOffset = Math.sin(castingProgress * Math.PI) * -15; 
+            ctx.fillStyle = "#fecaca"; ctx.fillRect(px + 21, py + 14 + castOffset, 6, 10); ctx.fillRect(px - 2, py + 14 + castOffset/2, 5, 10);
+        } else { 
+            ctx.fillStyle = "#fecaca"; ctx.fillRect(px - 2, py + 14, 5, 10); ctx.fillRect(px + 21, py + 14, 5, 10); 
+        }
+
+        ctx.fillStyle = "#fecaca"; ctx.fillRect(px + 4, py - 6, 16, 18);
+        ctx.fillStyle = "#000"; ctx.fillRect(px + 7, py + 2, 3, 3); ctx.fillRect(px + 15, py + 2, 3, 3);
+        ctx.fillStyle = "#f87171"; ctx.fillRect(px + 11, py + 8, 3, 1);
+        ctx.fillStyle = "#451a03"; ctx.fillRect(px + 3, py - 8, 18, 6); ctx.fillRect(px + 3, py - 2, 3, 10); ctx.fillRect(px + 18, py - 2, 3, 10); ctx.fillRect(px + 6, py - 10, 12, 3);
+
+        if(currentState === GAME_STATE.BITE && currentFish) {
+            ctx.fillStyle = RARITY[currentFish.rarity].color;
+            ctx.fillRect(px + 11, py - 30, 3, 10);
+            ctx.fillRect(px + 11, py - 17, 3, 3);
+        }
+
+        ctx.save(); 
+        let rodPivotX = px + 23; 
+        let rodPivotY = py + 18; 
+        if (currentState === GAME_STATE.CASTING) rodPivotY += Math.sin(castingProgress * Math.PI) * -15;
+        ctx.translate(rodPivotX, rodPivotY); 
+        
+        let rodBaseAngle = -Math.PI/3; 
+        let bend = 0;
+        if (currentState === GAME_STATE.CASTING) { 
+            rodBaseAngle = -Math.PI/2.2 + Math.sin(castingProgress * Math.PI) * -Math.PI/3.5; 
+            bend = Math.sin(castingProgress * Math.PI) * -40; 
+        } else if (currentState === GAME_STATE.REELING) { 
+            rodBaseAngle = -Math.PI/4 + (tension/100) * (Math.PI/6); 
+            bend = 30 + (tension/100) * 80; 
+        } else if (currentState === GAME_STATE.BITE) { 
+            rodBaseAngle = -Math.PI/3 + Math.sin(Date.now()/40) * 0.1; 
+            bend = 40; 
+        }
+        ctx.rotate(rodBaseAngle); 
+
+        ctx.fillStyle = "#1a0a00"; ctx.fillRect(-2, -3, 15, 6); 
+        ctx.fillStyle = "#3d1c02"; ctx.fillRect(10, -2.5, 5, 5); 
+
+        let rodLength = 95;
+        let tipX = rodLength; 
+        let tipY = -bend; 
+        let cpX = rodLength * 0.5; 
+        let cpY = -bend * 0.1;
+
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+        ctx.strokeStyle = "#451a03"; ctx.lineWidth = 3.5; ctx.stroke();
+        ctx.strokeStyle = "#5c2a06"; ctx.lineWidth = 1.5; ctx.stroke(); 
+
+        ctx.fillStyle = "#94a3b8";
+        for(let i=1; i<=4; i++) {
+            let t = i / 4.5;
+            let ringX = 10 + (tipX - 10) * t;
+            let ringY = 0 + (tipY - 0) * (t * t); 
+            ctx.beginPath();
+            ctx.arc(ringX, ringY, 2.5 - (i*0.3), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        let worldTipX = rodPivotX + (tipX * Math.cos(rodBaseAngle) - tipY * Math.sin(rodBaseAngle));
+        let worldTipY = rodPivotY + (tipX * Math.sin(rodBaseAngle) + tipY * Math.cos(rodBaseAngle));
+        ctx.restore();
+
+        if (player.bobber.active) {
+            if (laserIntensity > 0) {
+                ctx.save();
+                let laserGradient = ctx.createLinearGradient(player.bobber.x, player.bobber.y, player.bobber.x, 0);
+                laserGradient.addColorStop(0, `rgba(34, 197, 94, ${laserIntensity * 0.9})`);
+                laserGradient.addColorStop(0.3, `rgba(74, 222, 128, ${laserIntensity * 0.6})`);
+                laserGradient.addColorStop(0.7, `rgba(187, 247, 208, ${laserIntensity * 0.3})`);
+                laserGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                
+                ctx.shadowBlur = 30 * laserIntensity;
+                ctx.shadowColor = "#4ade80";
+                
+                let laserWidth = 50 * laserIntensity; 
+                ctx.fillStyle = laserGradient;
+                ctx.fillRect(player.bobber.x - (laserWidth / 2), 0, laserWidth, player.bobber.y);
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${laserIntensity})`;
+                ctx.fillRect(player.bobber.x - (8 * laserIntensity), 0, 16 * laserIntensity, player.bobber.y);
+
+                ctx.fillStyle = `rgba(255, 255, 255, ${laserIntensity * 0.5})`;
+                for(let i=0; i<3; i++) {
+                    let partX = player.bobber.x + (Math.random()-0.5) * laserWidth;
+                    let partY = Math.random() * player.bobber.y;
+                    ctx.fillRect(partX, partY, 2, 10);
+                }
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(worldTipX, worldTipY);
+            let lineCpX = (worldTipX + player.bobber.x) / 2;
+            let lineCpY;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.lineWidth = 1.2; 
+            if (currentState === GAME_STATE.REELING || currentState === GAME_STATE.BITE) {
+                lineCpY = (worldTipY + player.bobber.y) / 2 + 5;
+            } else if (currentState === GAME_STATE.CASTING) {
+                lineCpY = Math.min(worldTipY, player.bobber.y) - 30;
+            } else {
+                lineCpY = Math.max(worldTipY, player.bobber.y) + 15 + Math.sin(Date.now()/400)*8;
+            }
+            ctx.quadraticCurveTo(lineCpX, lineCpY, player.bobber.x, player.bobber.y - 12);
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(player.bobber.x, player.bobber.y); 
+            let bobSway = Math.sin(Date.now()/300) * 3; 
+            if(currentState === GAME_STATE.WAITING) ctx.translate(0, bobSway);
+            ctx.fillStyle = "#1e40af"; ctx.fillRect(-4, 0, 8, 4); 
+            ctx.fillStyle = (currentState === GAME_STATE.BITE && Math.floor(Date.now()/100)%2) ? "#ef4444" : "#f87171";
+            ctx.fillRect(-4, -4, 8, 4); ctx.fillStyle = "#fff"; ctx.fillRect(-1, -12, 2, 8); 
+            ctx.fillStyle = "#fbbf24"; ctx.fillRect(-2, -14, 4, 3);
+            if(currentState === GAME_STATE.WAITING || currentState === GAME_STATE.BITE) { 
+                ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.beginPath(); 
+                let rScale = (Date.now() % 1000) / 1000; 
+                ctx.ellipse(0, 2, 18 * rScale, 6 * rScale, 0, 0, Math.PI*2); ctx.stroke(); 
+            }
+            ctx.restore();
+        }
+
+        ctx.strokeStyle = "rgba(100, 150, 255, 0.4)"; ctx.lineWidth = 1; 
+        rainDrops.forEach(d => { ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + 8); ctx.stroke(); });
+        if(lightningBolt) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); lightningBolt.segments.forEach(s => { ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); }); ctx.stroke(); }
+        if(flashAlpha > 0) { ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`; ctx.fillRect(0,0,canvas.width,canvas.height); }
+        ctx.restore();
+    }
+
+    function gameLoop(t) { if (!lastTime) lastTime = t; update(t - lastTime); lastTime = t; draw(); requestAnimationFrame(gameLoop); }
+</script>
+</body>
+</html>
+
