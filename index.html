@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Pixel Pier: Sunset Catch Premium</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pixel Pier">
+    <meta name="theme-color" content="#2d1301">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2972/2972215.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -121,6 +129,9 @@
         
         .action-btn { background: #4ade80; color: #000; padding: 3px 5px; cursor: pointer; border: 2px solid #000; box-shadow: inset -1px -1px 0 #166534; font-size: 4px; }
         .action-btn.disabled { background: #666; cursor: not-allowed; opacity: 0.6; }
+        .action-btn.owned { background: #3b82f6; box-shadow: inset -1px -1px 0 #1d4ed8; }
+        .action-btn.active-skin { background: #fbbf24; border-color: #fff; box-shadow: 0 0 4px #fbbf24; }
+        .action-btn.holding-indicator { background: #ec4899; box-shadow: inset -1px -1px 0 #9d174d; border-color: #fff; }
         
         .fav-btn { color: #444; cursor: pointer; font-size: 10px; transition: color 0.2s; padding: 0 4px; }
         .fav-btn.active { color: #fbbf24; }
@@ -347,8 +358,8 @@
 
         <div id="shop-modal" class="modal">
             <div class="close-btn" onclick="toggleModal('shop-modal')">X</div>
-            <div class="modal-title">TOKO UMPAN & RAMUAN</div>
-            <div style="font-size: 4px; color: #fbbf24; margin-bottom: 3px;">BELI ITEM</div>
+            <div class="modal-title">TOKO</div>
+            <div style="font-size: 4px; color: #fbbf24; margin-bottom: 3px;">UMPAN & RAMUAN</div>
             <div class="list-item">
                 <span>UDANG (Rare Luck+)</span>
                 <span>25 G</span>
@@ -374,6 +385,8 @@
                 <span>250 G</span>
                 <div id="btn-MUTASI_POTION" class="action-btn" onclick="buyPotion('MUTASI_POTION', 250)">BELI</div>
             </div>
+            <div style="font-size: 4px; color: #fbbf24; margin-top: 8px; margin-bottom: 3px;">SKIN JORAN</div>
+            <div id="rod-skin-list"></div>
         </div>
 
         <div id="bag-modal" class="modal">
@@ -392,6 +405,48 @@
     </div>
 
 <script>
+    // --- PWA CONFIG & REGISTRATION ---
+    (function setupPWA() {
+        const manifestData = {
+            "name": "Pixel Pier: Sunset Catch Premium",
+            "short_name": "Pixel Pier",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#2d1301",
+            "theme_color": "#2d1301",
+            "description": "Premium Pixel Fishing Game on Sunset Pier",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/2972/2972215.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+        const stringManifest = JSON.stringify(manifestData);
+        const manifestBlob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(fetch(e.request).catch(() => e.respondWith(caches.match(e.request))));
+                });
+            `;
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            const swURL = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swURL).catch(err => console.log("SW Reg failed", err));
+        }
+    })();
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const tensionContainer = document.getElementById('tension-bar-container');
@@ -405,7 +460,6 @@
 
     canvas.width = 360; canvas.height = 640;
 
-    // AUDIO SYSTEM
     let audioCtx = null;
     function initAudio() {
         if (!audioCtx) {
@@ -459,7 +513,21 @@
     let level = 1, xp = 0;
     const xpPerLevel = (l) => l * 100;
 
-    let upgrades = { rod: 0, reel: 0 };
+    let upgrades = { 
+        rod: 0, 
+        reel: 0,
+        activeRodSkin: 'default',
+        ownedRodSkins: ['default']
+    };
+
+    const ROD_SKINS = {
+        'default': { name: 'STANDARD', shaft: '#451a03', rings: '#94a3b8', cork: '#3d1c02', handle: '#1a0a00', price: 0, effects: [] },
+        'bamboo': { name: 'BAMBU CLASSIC', shaft: '#d97706', rings: '#451a03', cork: '#78350f', handle: '#2d1301', price: 500, effects: ['leaves'] },
+        'neon': { name: 'CYBER NEON', shaft: '#1e293b', rings: '#22d3ee', cork: '#083344', handle: '#000000', price: 1500, TournamentPrice: 0, effects: ['glow', 'circuit'] },
+        'royal': { name: 'ROYAL GOLD', shaft: '#fbbf24', rings: '#ffffff', cork: '#d97706', handle: '#451a03', price: 5000, effects: ['sparkle', 'shimmer', 'gold_aura', 'gold_dust'] }
+    };
+
+    let rodEffectParticles = []; 
 
     let currentBait = 'worm';
     let baits = { worm: Infinity, shrimp: 0, lure: 0 };
@@ -476,6 +544,9 @@
     let lightningBolt = null;
 
     let laserIntensity = 0; 
+
+    // Fitur Angkat Ikan
+    let heldFishIndex = null;
 
     const RARITY = {
         COMMON: { name: "COMMON", color: "#9ca3af", weight: 1.0, chance: 65, xp: 10 },
@@ -579,6 +650,50 @@
         }
     };
 
+    window.buyRodSkin = (skinId) => {
+        initAudio();
+        const skin = ROD_SKINS[skinId];
+        if (upgrades.ownedRodSkins.includes(skinId)) {
+            selectRodSkin(skinId);
+            return;
+        }
+        if (coins >= skin.price) {
+            coins -= skin.price;
+            upgrades.ownedRodSkins.push(skinId);
+            selectRodSkin(skinId);
+            showMessage("SKIN BARU!");
+            SFX.victory();
+            saveGameData();
+        } else {
+            showMessage("G TIDAK CUKUP!");
+        }
+    };
+
+    window.selectRodSkin = (skinId) => {
+        initAudio();
+        if (upgrades.ownedRodSkins.includes(skinId)) {
+            upgrades.activeRodSkin = skinId;
+            updateUpgradeUI();
+            saveGameData();
+            SFX.click();
+            rodEffectParticles = []; 
+        }
+    };
+
+    window.toggleHoldFish = (index) => {
+        initAudio();
+        if (heldFishIndex === index) {
+            heldFishIndex = null;
+            showMessage("IKAN DISIMPAN");
+        } else {
+            heldFishIndex = index;
+            showMessage("MEMAMERKAN: " + inventory[index].name);
+        }
+        SFX.click();
+        updateBagUI();
+        setTimeout(hideMessage, 1200);
+    };
+
     window.addEventListener('keydown', (e) => {
         if(e.key === "ArrowLeft") setMove(-1);
         if(e.key === "ArrowRight") setMove(1);
@@ -661,7 +776,11 @@
             discoveredFish = new Set(data.discoveredFish || []);
             activePotion = data.activePotion || null; potionTimer = data.potionTimer || 0;
             level = data.level || 1; xp = data.xp || 0;
-            upgrades = data.upgrades || { rod: 0, reel: 0 };
+            if (data.upgrades) {
+                upgrades = data.upgrades;
+                if (!upgrades.activeRodSkin) upgrades.activeRodSkin = 'default';
+                if (!upgrades.ownedRodSkins) upgrades.ownedRodSkins = ['default'];
+            }
             baits = data.baits || { worm: Infinity, shrimp: 0, lure: 0 };
             dailyMissions = data.dailyMissions || [];
             missionRefreshCounter = data.missionRefreshCounter || 300;
@@ -705,6 +824,12 @@
 
     window.handleClick = function() {
         initAudio();
+        if (heldFishIndex !== null) {
+            showMessage("SIMPAN IKAN DAHULU!");
+            setTimeout(hideMessage, 1500);
+            return;
+        }
+
         if (currentState === GAME_STATE.IDLE) startCasting();
         else if (currentState === GAME_STATE.WAITING) resetGame();
         else if (currentState === GAME_STATE.BITE) startReeling();
@@ -785,16 +910,13 @@
     function startReeling() { 
         currentState = GAME_STATE.REELING; hideMessage(); 
         tensionContainer.style.display = 'block'; tension = 30; 
-        
         if (currentBait !== 'worm') {
             baits[currentBait]--;
             if (baits[currentBait] <= 0) { baits[currentBait] = 0; setBait('worm'); }
         }
-
         if (currentFish.rarity === "LEGENDARY" || currentFish.rarity === "MYTHIC" || currentFish.rarity === "SECRET") {
             laserIntensity = 1.0;
         }
-
         updateUI(); updateButtonLabel(); 
     }
 
@@ -837,7 +959,33 @@
         if(id === 'mission-modal') updateMissionUI();
     };
     
-    function updateUpgradeUI() {}
+    function updateUpgradeUI() {
+        const rodList = document.getElementById('rod-skin-list');
+        rodList.innerHTML = '';
+        Object.keys(ROD_SKINS).forEach(skinId => {
+            const skin = ROD_SKINS[skinId];
+            const isOwned = upgrades.ownedRodSkins.includes(skinId);
+            const isActive = upgrades.activeRodSkin === skinId;
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            let actionHtml = '';
+            if (isActive) {
+                actionHtml = `<div class="action-btn active-skin">AKTIF</div>`;
+            } else if (isOwned) {
+                actionHtml = `<div class="action-btn owned" onclick="selectRodSkin('${skinId}')">PAKAI</div>`;
+            } else {
+                actionHtml = `<div class="action-btn" onclick="buyRodSkin('${skinId}')">${skin.price} G</div>`;
+            }
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <div style="width:12px; height:3px; background:${skin.shaft}; border: 1px solid #000;"></div>
+                    <span>${skin.name}</span>
+                </div>
+                ${actionHtml}
+            `;
+            rodList.appendChild(item);
+        });
+    }
 
     window.buyPotion = function(name, cost) { 
         initAudio();
@@ -902,6 +1050,8 @@
 
     window.sellFish = function(index) { 
         initAudio();
+        if(heldFishIndex === index) heldFishIndex = null;
+        else if (heldFishIndex > index) heldFishIndex--;
         coins += inventory[index].val; inventory.splice(index, 1); updateBagUI(); updateUI(); saveGameData(); 
         SFX.click();
     };
@@ -909,15 +1059,19 @@
     window.sellAllFish = function() { 
         initAudio();
         let soldAny = false;
-        inventory = inventory.filter(f => {
+        inventory = inventory.filter((f, idx) => {
             if (f.isFavorite) {
                 return true; 
             } else {
+                if (heldFishIndex === idx) heldFishIndex = null;
                 coins += f.val;
                 soldAny = true;
                 return false; 
             }
         });
+        if (heldFishIndex !== null) {
+            heldFishIndex = inventory.findIndex(f => f === inventory[heldFishIndex]);
+        }
         if (soldAny) {
             SFX.click();
             updateBagUI(); updateUI(); saveGameData(); 
@@ -938,14 +1092,14 @@
         inventory.forEach((item, i) => {
             const row = document.createElement('div'); row.className = 'list-item';
             const canvasId = `bag-canvas-${i}`;
+            const isHolding = heldFishIndex === i;
             let sizeTag = "";
             if (item.weight > 100) sizeTag = " (RAKSASA)";
             else if (item.weight > 30) sizeTag = " (BESAR)";
-
             row.innerHTML = `
                 <div style="display:flex; align-items:center; gap:5px;">
                     <div class="fav-btn ${item.isFavorite ? 'active' : ''}" onclick="toggleFavorite(${i})">★</div>
-                    <div style="width:24px; height:24px; background:#1a1a2e; border:1px solid #333; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <div onclick="toggleHoldFish(${i})" style="width:24px; height:24px; background:#1a1a2e; border:1px solid ${isHolding ? '#ec4899' : '#333'}; display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;">
                         <canvas id="${canvasId}" width="24" height="24" style="image-rendering:pixelated;"></canvas>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:1px;">
@@ -953,7 +1107,10 @@
                         <span style="font-size:3px; opacity:0.7;">${item.weight.toFixed(2)} KG</span>
                     </div>
                 </div>
-                <div class="action-btn" onclick="sellFish(${i})" style="min-width:35px; text-align:center;">${item.val} G</div>
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <div class="action-btn ${isHolding ? 'holding-indicator' : ''}" onclick="toggleHoldFish(${i})">${isHolding ? 'HOLD' : 'LIHAT'}</div>
+                    <div class="action-btn" onclick="sellFish(${i})" style="min-width:35px; text-align:center;">${item.val} G</div>
+                </div>
             `;
             list.appendChild(row);
             const bCanvas = document.getElementById(canvasId); const bCtx = bCanvas.getContext('2d');
@@ -992,6 +1149,38 @@
         document.getElementById('count-lure').innerText = baits.lure;
     }
 
+    function spawnRodEffectParticle(worldX, worldY, type) {
+        if (type === 'leaves') {
+            rodEffectParticles.push({
+                x: worldX, y: worldY,
+                vx: (Math.random() - 0.5) * 0.4, vy: 0.3 + Math.random() * 0.5,
+                color: '#16a34a', life: 1, size: 1.5 + Math.random() * 2,
+                type: 'leaf', rot: Math.random() * Math.PI
+            });
+        } else if (type === 'sparkle') {
+            rodEffectParticles.push({
+                x: worldX, y: worldY,
+                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+                color: '#fbbf24', life: 0.8, size: 1 + Math.random() * 1.5,
+                type: 'spark'
+            });
+        } else if (type === 'circuit') {
+            rodEffectParticles.push({
+                x: worldX, y: worldY,
+                vx: (Math.random() - 0.5) * 0.5, vy: -Math.random(),
+                color: '#22d3ee', life: 1, size: 1.5,
+                type: 'square'
+            });
+        } else if (type === 'gold_dust') {
+            rodEffectParticles.push({
+                x: worldX, y: worldY,
+                vx: (Math.random() - 0.5) * 0.4, vy: Math.random() * 0.3,
+                color: '#fde68a', life: 1.0, size: 0.8,
+                type: 'dust'
+            });
+        }
+    }
+
     function update(dt) {
         weatherTimer -= dt/1000;
         if(weatherTimer <= 0) {
@@ -1001,7 +1190,6 @@
         missionRefreshCounter -= dt/1000;
         if(missionRefreshCounter <= 0) { generateMissions(); showMessage("MISI BARU!"); setTimeout(hideMessage, 1500); }
         if(document.getElementById('mission-modal').style.display === 'block') updateMissionTimerText();
-
         nextEventCounter -= dt/1000;
         if(nextEventCounter <= 0) {
             nextEventCounter = 60; activeEvent = Math.random() > 0.5 ? 'SUPER_LUCK' : 'SUPER_MUTASI'; eventTimer = 15; 
@@ -1009,23 +1197,27 @@
             alertBox.innerText = activeEvent === 'SUPER_LUCK' ? "LUCK 100X" : "MUTASI 100X";
         }
         if(eventTimer > 0) { eventTimer -= dt/1000; if(eventTimer <= 0) { activeEvent = null; document.getElementById('event-alert').style.display = 'none'; } }
-
         rainDrops.forEach(d => { d.y += d.s; if(d.y > canvas.height) { d.y = -10; d.x = Math.random()*canvas.width; } });
         if(currentWeather === WEATHER.STORM && Math.random() < 0.01) { flashAlpha = 0.8; shakeAmount = 15; createLightning(); }
         if(flashAlpha > 0) flashAlpha -= 0.05;
         if(lightningBolt) { lightningBolt.life--; if(lightningBolt.life <= 0) lightningBolt = null; }
-
         if (laserIntensity > 0) {
             laserIntensity -= 0.005; 
             shakeAmount = Math.max(shakeAmount, laserIntensity * 8); 
             if (Math.random() < 0.3) createSplash(player.bobber.x, player.bobber.y);
         }
-
         if (shakeAmount > 0) shakeAmount *= 0.9;
         if (potionTimer > 0) { potionTimer -= dt/1000; if (potionTimer <= 0) { activePotion = null; potionTimer = 0; saveGameData(); } updatePotionUI(); }
         for(let i = splashParticles.length - 1; i >= 0; i--) {
             let p = splashParticles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02; if(p.life <= 0) splashParticles.splice(i, 1);
         }
+        for(let i = rodEffectParticles.length - 1; i >= 0; i--) {
+            let p = rodEffectParticles[i];
+            p.x += p.vx; p.y += p.vy; p.life -= 0.015;
+            if (p.type === 'leaf') p.rot += 0.1;
+            if (p.life <= 0) rodEffectParticles.splice(i, 1);
+        }
+
         if(player.moveDir !== 0) { player.x += player.moveDir * player.speed; if(player.x < 5) player.x = 5; if(player.x > 85) player.x = 85; }
         if(player.isJumping) { player.y += player.vy; player.vy += player.gravity; if(player.y >= player.baseY) { player.y = player.baseY; player.vy = 0; player.isJumping = false; } }
         
@@ -1105,139 +1297,203 @@
         ctx.fillStyle = "#111"; ctx.fillRect(px + 2, player.y + 36, 8, 5); ctx.fillRect(px + 14, player.y + 36, 8, 5);
         ctx.fillStyle = "#1e293b"; ctx.fillRect(px + 3, player.y + 28, 6, 8); ctx.fillRect(px + 15, player.y + 28, 6, 8); ctx.fillRect(px + 3, player.y + 26, 18, 4);
         ctx.fillStyle = "#3b82f6"; ctx.fillRect(px + 2, py + 12, 20, 15); ctx.fillStyle = "#2563eb"; ctx.fillRect(px + 2, py + 23, 20, 4); ctx.fillRect(px + 11, py + 12, 2, 15);
-        
         ctx.fillStyle = "#1e293b"; 
         let reelAngle = (Date.now() / 80);
-        if (currentState === GAME_STATE.REELING) {
-            let hx = px + 22 + Math.cos(reelAngle) * 6; let hy = py + 16 + Math.sin(reelAngle) * 6; 
-            ctx.fillStyle = "#fecaca"; ctx.fillRect(hx, hy, 4, 4); 
-            ctx.fillStyle = "#64748b"; ctx.save(); ctx.translate(px + 24, py + 18); ctx.rotate(reelRotation); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
-        } else if (currentState === GAME_STATE.CASTING) {
-            let castOffset = Math.sin(castingProgress * Math.PI) * -15; 
-            ctx.fillStyle = "#fecaca"; ctx.fillRect(px + 21, py + 14 + castOffset, 6, 10); ctx.fillRect(px - 2, py + 14 + castOffset/2, 5, 10);
-        } else { 
-            ctx.fillStyle = "#fecaca"; ctx.fillRect(px - 2, py + 14, 5, 10); ctx.fillRect(px + 21, py + 14, 5, 10); 
+
+        // Angkat Ikan Di Atas Kepala
+        if (heldFishIndex !== null && inventory[heldFishIndex]) {
+            const hFish = inventory[heldFishIndex];
+            const hBob = Math.sin(Date.now()/250) * 2;
+            const fishDrawW = hFish.w * 1.0;
+            const fishDrawH = hFish.h * 1.0;
+            const liftHeight = 22 + (fishDrawH * 0.8); 
+            const fishPosX = px + 12 - (fishDrawW * 0.5); 
+            const fishPosY = py - liftHeight + hBob;
+            drawOrganicFish(ctx, fishPosX, fishPosY, fishDrawW, fishDrawH, hFish.color, hFish.secondary, hFish.rarity, 1.2, 0);
+            ctx.fillStyle = "#fecaca";
+            ctx.fillRect(px - 2, py + 5 + hBob, 6, 12); 
+            ctx.fillRect(px + 22, py + 5 + hBob, 6, 12); 
+            ctx.fillRect(px - 4, py + 2 + hBob, 8, 4);
+            ctx.fillRect(px + 22, py + 2 + hBob, 8, 4);
+        }
+
+        // DRAW ROD (HANYA JIKA TIDAK SEDANG ANGKAT IKAN)
+        if (heldFishIndex === null) {
+            if (currentState === GAME_STATE.REELING) {
+                let hx = px + 22 + Math.cos(reelAngle) * 6; let hy = py + 16 + Math.sin(reelAngle) * 6; 
+                ctx.fillStyle = "#fecaca"; ctx.fillRect(hx, hy, 4, 4); 
+                ctx.fillStyle = "#64748b"; ctx.save(); ctx.translate(px + 24, py + 18); ctx.rotate(reelRotation); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+            } else if (currentState === GAME_STATE.CASTING) {
+                let castOffset = Math.sin(castingProgress * Math.PI) * -15; 
+                ctx.fillStyle = "#fecaca"; ctx.fillRect(px + 21, py + 14 + castOffset, 6, 10); ctx.fillRect(px - 2, py + 14 + castOffset/2, 5, 10);
+            } else { 
+                ctx.fillStyle = "#fecaca"; ctx.fillRect(px - 2, py + 14, 5, 10); ctx.fillRect(px + 21, py + 14, 5, 10); 
+            }
         }
 
         ctx.fillStyle = "#fecaca"; ctx.fillRect(px + 4, py - 6, 16, 18);
         ctx.fillStyle = "#000"; ctx.fillRect(px + 7, py + 2, 3, 3); ctx.fillRect(px + 15, py + 2, 3, 3);
         ctx.fillStyle = "#f87171"; ctx.fillRect(px + 11, py + 8, 3, 1);
         ctx.fillStyle = "#451a03"; ctx.fillRect(px + 3, py - 8, 18, 6); ctx.fillRect(px + 3, py - 2, 3, 10); ctx.fillRect(px + 18, py - 2, 3, 10); ctx.fillRect(px + 6, py - 10, 12, 3);
-
+        
         if(currentState === GAME_STATE.BITE && currentFish) {
             ctx.fillStyle = RARITY[currentFish.rarity].color;
             ctx.fillRect(px + 11, py - 30, 3, 10);
             ctx.fillRect(px + 11, py - 17, 3, 3);
         }
 
-        ctx.save(); 
-        let rodPivotX = px + 23; 
-        let rodPivotY = py + 18; 
-        if (currentState === GAME_STATE.CASTING) rodPivotY += Math.sin(castingProgress * Math.PI) * -15;
-        ctx.translate(rodPivotX, rodPivotY); 
+        const skin = ROD_SKINS[upgrades.activeRodSkin || 'default'];
         
-        let rodBaseAngle = -Math.PI/3; 
-        let bend = 0;
-        if (currentState === GAME_STATE.CASTING) { 
-            rodBaseAngle = -Math.PI/2.2 + Math.sin(castingProgress * Math.PI) * -Math.PI/3.5; 
-            bend = Math.sin(castingProgress * Math.PI) * -40; 
-        } else if (currentState === GAME_STATE.REELING) { 
-            rodBaseAngle = -Math.PI/4 + (tension/100) * (Math.PI/6); 
-            bend = 30 + (tension/100) * 80; 
-        } else if (currentState === GAME_STATE.BITE) { 
-            rodBaseAngle = -Math.PI/3 + Math.sin(Date.now()/40) * 0.1; 
-            bend = 40; 
-        }
-        ctx.rotate(rodBaseAngle); 
+        // ROD LOGIC
+        if (heldFishIndex === null) {
+            ctx.save(); 
+            let rodPivotX = px + 23; 
+            let rodPivotY = py + 18; 
+            if (currentState === GAME_STATE.CASTING) rodPivotY += Math.sin(castingProgress * Math.PI) * -15;
+            ctx.translate(rodPivotX, rodPivotY); 
+            let rodBaseAngle = -Math.PI/3; 
+            let bend = 0;
+            if (currentState === GAME_STATE.CASTING) { 
+                rodBaseAngle = -Math.PI/2.2 + Math.sin(castingProgress * Math.PI) * -Math.PI/3.5; 
+                bend = Math.sin(castingProgress * Math.PI) * -40; 
+            } else if (currentState === GAME_STATE.REELING) { 
+                rodBaseAngle = -Math.PI/4 + (tension/100) * (Math.PI/6); 
+                bend = 30 + (tension/100) * 80; 
+            } else if (currentState === GAME_STATE.BITE) { 
+                rodBaseAngle = -Math.PI/3 + Math.sin(Date.now()/40) * 0.1; 
+                bend = 40; 
+            }
+            ctx.rotate(rodBaseAngle); 
 
-        ctx.fillStyle = "#1a0a00"; ctx.fillRect(-2, -3, 15, 6); 
-        ctx.fillStyle = "#3d1c02"; ctx.fillRect(10, -2.5, 5, 5); 
+            if (skin.effects.includes('glow')) { ctx.shadowBlur = 15; ctx.shadowColor = skin.rings; }
+            if (skin.effects.includes('gold_aura')) { ctx.shadowBlur = 30; ctx.shadowColor = "rgba(251, 191, 36, 0.6)"; }
 
-        let rodLength = 95;
-        let tipX = rodLength; 
-        let tipY = -bend; 
-        let cpX = rodLength * 0.5; 
-        let cpY = -bend * 0.1;
+            ctx.fillStyle = skin.handle; ctx.fillRect(-2, -3, 15, 6); 
+            ctx.fillStyle = skin.cork; ctx.fillRect(10, -2.5, 5, 5); 
+            let rodLength = 95;
+            let tipX = rodLength; 
+            let tipY = -bend; 
+            let cpX = rodLength * 0.5; 
+            let cpY = -bend * 0.1;
 
-        ctx.beginPath();
-        ctx.moveTo(10, 0);
-        ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
-        ctx.strokeStyle = "#451a03"; ctx.lineWidth = 3.5; ctx.stroke();
-        ctx.strokeStyle = "#5c2a06"; ctx.lineWidth = 1.5; ctx.stroke(); 
-
-        ctx.fillStyle = "#94a3b8";
-        for(let i=1; i<=4; i++) {
-            let t = i / 4.5;
-            let ringX = 10 + (tipX - 10) * t;
-            let ringY = 0 + (tipY - 0) * (t * t); 
             ctx.beginPath();
-            ctx.arc(ringX, ringY, 2.5 - (i*0.3), 0, Math.PI * 2);
-            ctx.stroke();
-        }
+            ctx.moveTo(10, 0);
+            ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+            ctx.strokeStyle = skin.shaft; ctx.lineWidth = 3.5; ctx.stroke();
 
-        let worldTipX = rodPivotX + (tipX * Math.cos(rodBaseAngle) - tipY * Math.sin(rodBaseAngle));
-        let worldTipY = rodPivotY + (tipX * Math.sin(rodBaseAngle) + tipY * Math.cos(rodBaseAngle));
-        ctx.restore();
-
-        if (player.bobber.active) {
-            if (laserIntensity > 0) {
+            if (skin.effects.includes('shimmer')) {
+                let shimTime = Date.now();
+                let shimP = (shimTime % 1500) / 1500;
                 ctx.save();
-                let laserGradient = ctx.createLinearGradient(player.bobber.x, player.bobber.y, player.bobber.x, 0);
-                laserGradient.addColorStop(0, `rgba(34, 197, 94, ${laserIntensity * 0.9})`);
-                laserGradient.addColorStop(0.3, `rgba(74, 222, 128, ${laserIntensity * 0.6})`);
-                laserGradient.addColorStop(0.7, `rgba(187, 247, 208, ${laserIntensity * 0.3})`);
-                laserGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
-                
-                ctx.shadowBlur = 30 * laserIntensity;
-                ctx.shadowColor = "#4ade80";
-                
-                let laserWidth = 50 * laserIntensity; 
-                ctx.fillStyle = laserGradient;
-                ctx.fillRect(player.bobber.x - (laserWidth / 2), 0, laserWidth, player.bobber.y);
-                
-                ctx.fillStyle = `rgba(255, 255, 255, ${laserIntensity})`;
-                ctx.fillRect(player.bobber.x - (8 * laserIntensity), 0, 16 * laserIntensity, player.bobber.y);
-
-                ctx.fillStyle = `rgba(255, 255, 255, ${laserIntensity * 0.5})`;
-                for(let i=0; i<3; i++) {
-                    let partX = player.bobber.x + (Math.random()-0.5) * laserWidth;
-                    let partY = Math.random() * player.bobber.y;
-                    ctx.fillRect(partX, partY, 2, 10);
-                }
+                ctx.globalCompositeOperation = 'source-atop';
+                let grad = ctx.createLinearGradient(10 + (rodLength * shimP) - 20, 0, 10 + (rodLength * shimP) + 20, 0);
+                grad.addColorStop(0, "rgba(255,255,255,0)");
+                grad.addColorStop(0.5, "rgba(255,255,255,0.8)");
+                grad.addColorStop(1, "rgba(255,255,255,0)");
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+                ctx.strokeStyle = grad; ctx.lineWidth = 4.5; ctx.stroke();
                 ctx.restore();
             }
-
+            
             ctx.beginPath();
-            ctx.moveTo(worldTipX, worldTipY);
-            let lineCpX = (worldTipX + player.bobber.x) / 2;
-            let lineCpY;
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.lineWidth = 1.2; 
-            if (currentState === GAME_STATE.REELING || currentState === GAME_STATE.BITE) {
-                lineCpY = (worldTipY + player.bobber.y) / 2 + 5;
-            } else if (currentState === GAME_STATE.CASTING) {
-                lineCpY = Math.min(worldTipY, player.bobber.y) - 30;
-            } else {
-                lineCpY = Math.max(worldTipY, player.bobber.y) + 15 + Math.sin(Date.now()/400)*8;
-            }
-            ctx.quadraticCurveTo(lineCpX, lineCpY, player.bobber.x, player.bobber.y - 12);
-            ctx.stroke();
+            ctx.moveTo(10, 0);
+            ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+            ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1.5; ctx.stroke(); 
 
-            ctx.save();
-            ctx.translate(player.bobber.x, player.bobber.y); 
-            let bobSway = Math.sin(Date.now()/300) * 3; 
-            if(currentState === GAME_STATE.WAITING) ctx.translate(0, bobSway);
-            ctx.fillStyle = "#1e40af"; ctx.fillRect(-4, 0, 8, 4); 
-            ctx.fillStyle = (currentState === GAME_STATE.BITE && Math.floor(Date.now()/100)%2) ? "#ef4444" : "#f87171";
-            ctx.fillRect(-4, -4, 8, 4); ctx.fillStyle = "#fff"; ctx.fillRect(-1, -12, 2, 8); 
-            ctx.fillStyle = "#fbbf24"; ctx.fillRect(-2, -14, 4, 3);
-            if(currentState === GAME_STATE.WAITING || currentState === GAME_STATE.BITE) { 
-                ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.beginPath(); 
-                let rScale = (Date.now() % 1000) / 1000; 
-                ctx.ellipse(0, 2, 18 * rScale, 6 * rScale, 0, 0, Math.PI*2); ctx.stroke(); 
+            // Partikel yang mengikuti lengkungan Joran
+            for(let i=1; i<=4; i++) {
+                let t = i / 4.5;
+                let ringX = (1 - t) * (1 - t) * 10 + 2 * (1 - t) * t * cpX + t * t * tipX;
+                let ringY = (1 - t) * (1 - t) * 0 + 2 * (1 - t) * t * cpY + t * t * tipY;
+                ctx.fillStyle = skin.rings; ctx.strokeStyle = skin.rings;
+                ctx.beginPath(); ctx.arc(ringX, ringY, 2.5 - (i*0.3), 0, Math.PI * 2); ctx.stroke();
+                let rad = rodBaseAngle;
+                let worldX = rodPivotX + (ringX * Math.cos(rad) - ringY * Math.sin(rad));
+                let worldY = rodPivotY + (ringX * Math.sin(rad) + ringY * Math.cos(rad));
+                if (skin.effects.includes('leaves') && Math.random() < 0.08) spawnRodEffectParticle(worldX, worldY, 'leaves');
+                if (skin.effects.includes('gold_dust') && (currentState === GAME_STATE.CASTING || currentState === GAME_STATE.REELING || currentState === GAME_STATE.BITE)) {
+                    if(Math.random() < 0.15) spawnRodEffectParticle(worldX, worldY, 'gold_dust');
+                }
+                if (skin.effects.includes('sparkle') && Math.random() < 0.1) spawnRodEffectParticle(worldX, worldY, 'sparkle');
             }
+
+            let worldTipX = rodPivotX + (tipX * Math.cos(rodBaseAngle) - tipY * Math.sin(rodBaseAngle));
+            let worldTipY = rodPivotY + (tipX * Math.sin(rodBaseAngle) + tipY * Math.cos(rodBaseAngle));
             ctx.restore();
+
+            if (player.bobber.active) {
+                if (skin.effects.includes('circuit')) {
+                    if (Math.random() < 0.15) {
+                        let randT = Math.random();
+                        let cx = worldTipX + (player.bobber.x - worldTipX) * randT;
+                        let cy = worldTipY + (player.bobber.y - 12 - worldTipY) * randT;
+                        spawnRodEffectParticle(cx, cy, 'circuit');
+                    }
+                }
+
+                // ============ LASER EFFECT (RESTORED AS ORIGINAL) ============
+                if (laserIntensity > 0) {
+                    ctx.save();
+                    let laserGradient = ctx.createLinearGradient(player.bobber.x, player.bobber.y, player.bobber.x, 0);
+                    laserGradient.addColorStop(0, `rgba(34, 197, 94, ${laserIntensity * 0.9})`);
+                    laserGradient.addColorStop(0.3, `rgba(74, 222, 128, ${laserIntensity * 0.6})`);
+                    laserGradient.addColorStop(0.7, `rgba(187, 247, 208, ${laserIntensity * 0.3})`);
+                    laserGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                    ctx.shadowBlur = 30 * laserIntensity; ctx.shadowColor = "#4ade80";
+                    let laserWidth = 50 * laserIntensity; 
+                    ctx.fillStyle = laserGradient;
+                    ctx.fillRect(player.bobber.x - (laserWidth / 2), 0, laserWidth, player.bobber.y);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${laserIntensity})`;
+                    ctx.fillRect(player.bobber.x - (8 * laserIntensity), 0, 16 * laserIntensity, player.bobber.y);
+                    ctx.restore();
+                }
+                // ============================================================
+
+                ctx.beginPath();
+                ctx.moveTo(worldTipX, worldTipY);
+                let lineCpX = (worldTipX + player.bobber.x) / 2;
+                let lineCpY;
+                if (skin.effects.includes('gold_aura')) {
+                    ctx.strokeStyle = "#fde68a"; ctx.shadowBlur = 8; ctx.shadowColor = "#fbbf24";
+                } else {
+                    ctx.strokeStyle = skin.effects.includes('glow') ? skin.rings : "rgba(255, 255, 255, 0.8)";
+                }
+                ctx.lineWidth = skin.effects.includes('gold_aura') ? 1.8 : 1.2; 
+                if (currentState === GAME_STATE.REELING || currentState === GAME_STATE.BITE) {
+                    lineCpY = (worldTipY + player.bobber.y) / 2 + 5;
+                } else if (currentState === GAME_STATE.CASTING) {
+                    lineCpY = Math.min(worldTipY, player.bobber.y) - 30;
+                } else {
+                    lineCpY = Math.max(worldTipY, player.bobber.y) + 15 + Math.sin(Date.now()/40)*8;
+                }
+                ctx.quadraticCurveTo(lineCpX, lineCpY, player.bobber.x, player.bobber.y - 12);
+                ctx.stroke(); ctx.shadowBlur = 0; 
+
+                ctx.save();
+                ctx.translate(player.bobber.x, player.bobber.y); 
+                let bobSway = Math.sin(Date.now()/300) * 3; 
+                if(currentState === GAME_STATE.WAITING) ctx.translate(0, bobSway);
+                ctx.fillStyle = "#1e40af"; ctx.fillRect(-4, 0, 8, 4); 
+                ctx.fillStyle = (currentState === GAME_STATE.BITE && Math.floor(Date.now()/100)%2) ? "#ef4444" : "#f87171";
+                ctx.fillRect(-4, -4, 8, 4); ctx.fillStyle = "#fff"; ctx.fillRect(-1, -12, 2, 8); 
+                ctx.fillStyle = "#fbbf24"; ctx.fillRect(-2, -14, 4, 3);
+                ctx.restore();
+            }
         }
+
+        rodEffectParticles.forEach(p => {
+            ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.translate(p.x, p.y);
+            if (p.type === 'leaf') {
+                ctx.rotate(p.rot); ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size/2, 0, 0, Math.PI*2); ctx.fill();
+            } else if (p.type === 'spark') {
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.fillRect(-p.size, 0, p.size*2, 0.5); ctx.fillRect(0, -p.size, 0.5, p.size*2);
+            } else if (p.type === 'dust') {
+                ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI*2); ctx.fill();
+            } else { ctx.fillRect(0, 0, p.size, p.size); }
+            ctx.restore();
+        });
 
         ctx.strokeStyle = "rgba(100, 150, 255, 0.4)"; ctx.lineWidth = 1; 
         rainDrops.forEach(d => { ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + 8); ctx.stroke(); });
