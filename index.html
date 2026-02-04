@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Pixel Pier">
     <meta name="theme-color" content="#2d1301">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2972/2972215.png">
+    <link rel="apple-touch-icon" href="https://ibb.co.com/0pmvZWFT">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -303,7 +303,7 @@
             <div id="bait-shrimp" class="bait-slot" onclick="setBait('shrimp')" title="Tasty Shrimp">
                 <svg viewBox="0 0 24 24" fill="none">
                     <path d="M4 14C4 14 8 8 14 8C20 8 20 14 20 14" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/>
-                    <path d="M20 14L22 16M20 14L22 12" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+                    <path d="20 14L22 16M20 14L22 12" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
                     <path d="M8 10V12M12 9V12M16 10V12" stroke="#FDBA74" stroke-width="1.5" stroke-linecap="round"/>
                     <circle cx="6" cy="13" r="1" fill="#000"/>
                 </svg>
@@ -417,7 +417,7 @@
             "description": "Premium Pixel Fishing Game on Sunset Pier",
             "icons": [
                 {
-                    "src": "https://cdn-icons-png.flaticon.com/512/2972/2972215.png",
+                    "src": "https://ibb.co.com/0pmvZWFT",
                     "sizes": "512x512",
                     "type": "image/png",
                     "purpose": "any maskable"
@@ -874,12 +874,17 @@
         anim();
     }
 
-    function waitForBite() { 
+    function biteChanceLogic() { 
         let biteChance = (activePotion === 'LUCK_POTION' || activeEvent === 'SUPER_LUCK') ? 300 : 1000;
         if (currentBait === 'worm') biteChance *= 0.75;
         else if (currentBait === 'shrimp') biteChance *= 0.5;
         else if (currentBait === 'lure') biteChance *= 0.3;
         biteChance *= (currentWeather === WEATHER.STORM ? 0.4 : 0.6);
+        return biteChance;
+    }
+
+    function waitForBite() { 
+        let biteChance = biteChanceLogic();
         setTimeout(() => { 
             if (currentState === GAME_STATE.WAITING) { 
                 let rand = Math.random() * 100;
@@ -1402,7 +1407,6 @@
             ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
             ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1.5; ctx.stroke(); 
 
-            // Partikel yang mengikuti lengkungan Joran
             for(let i=1; i<=4; i++) {
                 let t = i / 4.5;
                 let ringX = (1 - t) * (1 - t) * 10 + 2 * (1 - t) * t * cpX + t * t * tipX;
@@ -1433,7 +1437,6 @@
                     }
                 }
 
-                // ============ LASER EFFECT (RESTORED AS ORIGINAL) ============
                 if (laserIntensity > 0) {
                     ctx.save();
                     let laserGradient = ctx.createLinearGradient(player.bobber.x, player.bobber.y, player.bobber.x, 0);
@@ -1449,7 +1452,6 @@
                     ctx.fillRect(player.bobber.x - (8 * laserIntensity), 0, 16 * laserIntensity, player.bobber.y);
                     ctx.restore();
                 }
-                // ============================================================
 
                 ctx.beginPath();
                 ctx.moveTo(worldTipX, worldTipY);
